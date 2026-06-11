@@ -1,0 +1,326 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* XENO // MONOLITH Palette */
+  --mono-0: #000000;  /* Pure Black */
+  --mono-5: #050505;  /* Deep Black */
+  --mono-10: #0A0A0A; /* Surface */
+  --mono-20: #141414;
+  --mono-30: #1F1F1F;
+  --mono-40: #2E2E2E;
+  --mono-100: #FFFFFF; /* Accent / Primary Text */
+  
+  --text-primary: #FFFFFF;
+  --text-secondary: #8A8A8A;
+  --text-muted: #5A5A5A;
+  
+  --border-subtle: rgba(255,255,255,0.08);
+  --border-active: rgba(255,255,255,0.2);
+  
+  --glass-bg: rgba(0,0,0,0.7);
+  --glass-blur: blur(20px);
+  
+  --mouse-x: 50%;
+  --mouse-y: 50%;
+}
+
+@layer base {
+  *, *::before, *::after {
+    @apply border-white/5;
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--mono-0);
+  }
+
+  body {
+    @apply antialiased overflow-x-hidden m-0 p-0;
+    font-family: 'Inter', 'Outfit', system-ui, sans-serif;
+    background: var(--mono-0);
+    color: var(--text-primary);
+    min-height: 100vh;
+  }
+
+  /* ── Cinematic Foundations ──────────────── */
+  
+  /* Animated Grain Overlay */
+  body::before {
+    content: '';
+    position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+    z-index: 9999; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.04;
+    animation: grainAnimation 8s steps(10) infinite;
+  }
+
+  /* Mouse Spotlight Effect */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    z-index: 9998; pointer-events: none;
+    background: radial-gradient(
+      circle 600px at var(--mouse-x) var(--mouse-y),
+      rgba(255, 255, 255, 0.03),
+      transparent 80%
+    );
+  }
+
+  @keyframes grainAnimation {
+    0%, 100% { transform:translate(0, 0) }
+    10% { transform:translate(-5%, -10%) }
+    20% { transform:translate(-15%, 5%) }
+    30% { transform:translate(7%, -25%) }
+    40% { transform:translate(-5%, 25%) }
+    50% { transform:translate(-15%, 10%) }
+    60% { transform:translate(15%, 0%) }
+    70% { transform:translate(0%, 15%) }
+    80% { transform:translate(3%, 35%) }
+    90% { transform:translate(-10%, 10%) }
+  }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--mono-30); transition: background 0.3s; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--mono-100); }
+}
+
+@layer components {
+  /* ── Monolith Components ─────────────────── */
+
+  .monolith-card {
+    @apply bg-black border border-white/10 relative overflow-hidden transition-all duration-500;
+    box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.5);
+  }
+  .monolith-card:hover {
+    @apply border-white/20;
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px -4px rgba(0, 0, 0, 0.7);
+  }
+
+  .matrix-heading {
+    @apply font-black tracking-tighter uppercase;
+    font-size: clamp(2rem, 5vw, 4rem);
+    line-height: 0.9;
+  }
+
+  .btn-monolith {
+    @apply px-8 py-3 bg-white text-black font-black text-xs uppercase tracking-[0.2em]
+           transition-all duration-300 active:scale-95 flex items-center justify-center gap-2;
+  }
+  .btn-monolith:hover {
+    @apply tracking-[0.3em] bg-zinc-200;
+  }
+
+  .btn-monolith-outline {
+    @apply px-8 py-3 bg-transparent text-white font-black text-xs uppercase tracking-[0.2em]
+           border border-white/20 transition-all duration-300 active:scale-95
+           flex items-center justify-center gap-2;
+  }
+  .btn-monolith-outline:hover {
+    @apply bg-white text-black border-white tracking-[0.3em];
+  }
+
+  .input-monolith {
+    @apply w-full bg-black border border-white/10 px-4 py-3 text-sm text-white transition-all duration-300
+           placeholder:text-zinc-700 focus:border-white focus:outline-none focus:ring-0;
+  }
+
+  /* ── Table Aesthetics ────────────────────── */
+  .table-container {
+    @apply w-full border border-white/5 bg-black/40 backdrop-blur-md;
+  }
+  .table-header-cell {
+    @apply px-6 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/10;
+  }
+  .table-row-monolith {
+    @apply border-b border-white/5 transition-all duration-300 cursor-pointer;
+  }
+  .table-row-monolith:hover {
+    @apply bg-white/[0.03];
+  }
+
+  /* ── Animations ───────────────────────────── */
+  .sweep-hover {
+    position: relative;
+    overflow: hidden;
+  }
+  .sweep-hover::after {
+    content: '';
+    position: absolute;
+    top: 0; height: 100%; width: 60px;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
+    transform: skewX(-25deg);
+    transition: 0.6s;
+    left: -150%;
+    pointer-events: none;
+  }
+
+/* ═══════════════════════════════════════════════
+   RECHARTS OVERRIDES
+═══════════════════════════════════════════════ */
+.recharts-cartesian-grid line { stroke: rgba(255,255,255,0.04) !important; }
+.recharts-xAxis .recharts-tick-value,
+.recharts-yAxis .recharts-tick-value { fill: #475569 !important; font-size: 11px !important; font-weight: 600 !important; }
+.recharts-tooltip-wrapper { outline: none !important; }
+.recharts-default-tooltip {
+  background: rgba(8,8,20,0.95) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 16px !important;
+  padding: 12px 16px !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.8) !important;
+}
+.recharts-tooltip-label { color: #64748b !important; font-size: 11px !important; font-weight: 700 !important; text-transform: uppercase; letter-spacing: 0.05em; }
+.recharts-tooltip-item { color: #e2e8f0 !important; font-size: 13px !important; font-weight: 700 !important; }
+.recharts-legend-item-text { color: #64748b !important; font-size: 11px !important; font-weight: 700 !important; }
+
+/* ═══════════════════════════════════════════════
+   FRAMER MOTION PAGE TRANSITIONS
+═══════════════════════════════════════════════ */
+.page-enter { animation: slideUp 0.5s cubic-bezier(0.23, 1, 0.32, 1); }
+
+/* ═══════════════════════════════════════════════
+   TOAST OVERRIDES
+═══════════════════════════════════════════════ */
+[data-hot-toast] > div {
+  background: rgba(10,10,25,0.95) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 16px !important;
+  backdrop-filter: blur(20px);
+  color: #f1f5f9 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+/* ═══════════════════════════════════════════════
+   AI STREAMING CURSOR
+═══════════════════════════════════════════════ */
+.streaming-cursor {
+  display: inline-block;
+  width: 2px; height: 16px;
+  background: #8b5cf6;
+  border-radius: 1px;
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: pulseGlow 1s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════
+   ANIMATED GRADIENT CARDS
+═══════════════════════════════════════════════ */
+.holo-card {
+  position: relative;
+  overflow: hidden;
+}
+.holo-card::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    rgba(139,92,246,0) 0deg,
+    rgba(139,92,246,0.15) 90deg,
+    rgba(6,182,212,0.15) 180deg,
+    rgba(236,72,153,0.1) 270deg,
+    rgba(139,92,246,0) 360deg
+  );
+  animation: spin 8s linear infinite;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════
+   AMAZING ANIMATIONS
+═══════════════════════════════════════════════ */
+@keyframes lightSweep {
+  0%   { left: -100%; opacity: 0; }
+  50%  { opacity: 0.5; }
+  100% { left: 100%; opacity: 0; }
+}
+
+.sweep-hover {
+  position: relative;
+  overflow: hidden;
+}
+.sweep-hover::after {
+  content: '';
+  position: absolute;
+  top: 0; height: 100%; width: 40px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent);
+  transform: skewX(-20deg);
+  transition: 0.5s;
+  left: -100%;
+  pointer-events: none;
+}
+.sweep-hover:hover::after {
+  animation: lightSweep 0.6s ease;
+}
+
+@keyframes floating {
+  0%   { transform: translateY(0px); }
+  50%  { transform: translateY(-6px); }
+  100% { transform: translateY(0px); }
+}
+.animate-float { animation: floating 4s ease-in-out infinite; }
+
+@keyframes blurIn {
+  from { filter: blur(12px); opacity: 0; transform: scale(1.05); }
+  to   { filter: blur(0); opacity: 1; transform: scale(1); }
+}
+.animate-blur-in { animation: blurIn 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.02); }
+}
+
+@keyframes liquidHover {
+  0% { transform: scale(1) translateZ(0); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); }
+  50% { transform: scale(1.02) translateZ(0); filter: brightness(1.2) drop-shadow(0 8px 16px rgba(255,255,255,0.1)); }
+  100% { transform: scale(1) translateZ(0); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); }
+}
+.liquid-metal-hover { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+.liquid-metal-hover:hover { animation: liquidHover 1s infinite alternate; }
+
+.magnetic-btn { display: inline-block; transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); }
+.magnetic-btn:hover { transform: scale(1.05) translateY(-2px); }
+
+@keyframes scanLine {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+.scan-line {
+  position: absolute; top: 0; left: 0; right: 0; height: 10px;
+  background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.1), transparent);
+  animation: scanLine 6s linear infinite; pointer-events: none; z-index: 100;
+}
+
+
+/* ── Refining Table ──────────────────────── */
+.table-row {
+  @apply border-b border-white/[0.04] transition-all duration-300;
+}
+.table-row:hover { 
+  background: rgba(255,255,255,0.03); 
+  transform: translateX(4px);
+}
+
+/* ── Custom Scrollbars ───────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+}

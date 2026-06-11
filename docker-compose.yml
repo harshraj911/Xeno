@@ -1,0 +1,97 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: xeno_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: xeno
+      POSTGRES_PASSWORD: xenosecret
+      POSTGRES_DB: xenocrm
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U xeno -d xenocrm']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: xeno_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      network: host
+    container_name: xeno_backend
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+    environment:
+      - DATABASE_URL=postgresql://xeno:xenosecret@postgres:5432/xenocrm
+      - REDIS_URL=redis://redis:6379
+      - CHANNEL_SERVICE_URL=http://channel-service:5000
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - NVIDIA_MODEL=${NVIDIA_MODEL}
+      - JWT_SECRET=${JWT_SECRET:-supersecretjwt}
+      - NODE_ENV=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  channel-service:
+    build:
+      context: ./channel-service
+      dockerfile: Dockerfile
+      network: host
+    container_name: xeno_channel
+    restart: unless-stopped
+    ports:
+      - '5000:5000'
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - CRM_CALLBACK_URL=http://backend:4000/api/receipts/callback
+      - NODE_ENV=production
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      network: host
+      args:
+        - VITE_API_URL=http://localhost:4000
+    container_name: xeno_frontend
+    restart: unless-stopped
+    ports:
+      - '3000:80'
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:

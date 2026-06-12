@@ -166,4 +166,14 @@ router.get('/conversation/:sessionId', async (req, res) => {
   }
 });
 
+// AI health check
+router.get('/health', (req, res) => {
+  const providers = getActiveProviders();
+  const isHealthy = providers.groq || providers.nvidia;
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'healthy' : 'degraded',
+    providers
+  });
+});
+
 export default router;

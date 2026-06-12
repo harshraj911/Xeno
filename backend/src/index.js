@@ -76,7 +76,7 @@ app.use('/api/ingest', ingestRoutes);
 
 // Health check (shared logic)
 async function getHealthStatus() {
-  const services = { database: 'down', api: 'up', channelService: 'down' };
+  const services = { database: 'down', api: 'up', channelService: 'down', aiEngine: 'down' };
   try {
     await prisma.$queryRaw`SELECT 1`;
     services.database = 'up';
@@ -91,7 +91,13 @@ async function getHealthStatus() {
     if (channelRes.ok) services.channelService = 'up';
   } catch (err) { /* ignore */ }
 
-  const status = (services.database === 'up' && services.channelService === 'up') ? 'healthy' : 'degraded';
+  try {
+    const { getActiveProviders } = await import('./services/groqService.js');
+    const providers = getActiveProviders();
+    if (providers.groq || providers.nvidia) services.aiEngine = 'up';
+  } catch (err) { /* ignore */ }
+
+  const status = (services.database === 'up' && services.channelService === 'up' && services.aiEngine === 'up') ? 'healthy' : 'degraded';
   return { status, timestamp: new Date().toISOString(), services };
 }
 

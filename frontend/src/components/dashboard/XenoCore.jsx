@@ -119,17 +119,22 @@ export default function XenoCore({ revenue = 0, customers = 0 }) {
       <Canvas
         camera={{ position: [0, 0, 5], fov: 50 }}
         style={{ background: 'transparent' }}
-        dpr={[1, 2]}
+        dpr={1} // Cap DPR to 1 to save GPU memory
         powerPreference="high-performance"
         gl={{ 
-          antialias: true, 
+          antialias: false, // Turn off for performance
           alpha: true, 
           stencil: false,
           depth: true,
-          powerPreference: 'high-performance' 
+          powerPreference: 'high-performance',
+          failIfMajorPerformanceCaveat: false
         }}
         onCreated={({ gl }) => {
           gl.setClearColor(0x000000, 0);
+          gl.domElement.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault();
+            console.warn('XenoCore: WebGL context lost.');
+          }, false);
         }}
       >
         <ambientLight intensity={0.1} />

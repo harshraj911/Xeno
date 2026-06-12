@@ -19,7 +19,7 @@ export default function StarBackground() {
     window.addEventListener('resize', resize);
 
     // Initialize nodes
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 20; i++) {
       nodes.push({
         x: Math.random() * window.innerWidth,
         y: Math.random() * window.innerHeight,

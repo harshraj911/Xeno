@@ -13,7 +13,7 @@ function NetworkBackground({ activeNodes = 50, opacity = 0.4 }) {
     const ctx = canvas.getContext('2d');
     let animId;
     let nodes = [];
-    const numNodes = Math.min(Math.max(activeNodes, 40), 100);
+    const numNodes = Math.min(Math.max(activeNodes, 20), 40);
     
     const resize = () => {
       canvas.width = window.innerWidth;

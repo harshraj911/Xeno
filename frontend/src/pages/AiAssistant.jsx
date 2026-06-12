@@ -221,28 +221,34 @@ export default function AiAssistant() {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep the incomplete last line in the buffer
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+        
+        // Robust SSE line splitting and multi-block handling
+        let lineEnd;
+        while ((lineEnd = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, lineEnd).trim();
+          buffer = buffer.slice(lineEnd + 1);
           
-          try {
-            const d = JSON.parse(trimmed.slice(6));
-            if (d.delta) { 
-              full += d.delta; 
-              setMsgs(p => p.map(m => m.id === aid ? { ...m, content: full } : m)); 
+          if (!line || !line.startsWith('data: ')) continue;
+          
+          // In case multiple data: blocks are on one line (rare but possible in some proxies)
+          const dataBlocks = line.split('data: ').filter(Boolean);
+          for (const block of dataBlocks) {
+            try {
+              const d = JSON.parse(block.trim());
+              if (d.delta) { 
+                full += d.delta; 
+                setMsgs(p => p.map(m => m.id === aid ? { ...m, content: full } : m)); 
+              }
+              if (d.done) { 
+                setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: full || 'Done.' } : m));
+                executeCommand(full);
+              }
+              if (d.error) { 
+                setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: `ERROR: ${d.error}` } : m)); 
+              }
+            } catch (e) {
+              console.error('SSE JSON Parse Error:', e, block);
             }
-            if (d.done) { 
-              setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: full || 'Done.' } : m));
-              executeCommand(full);
-            }
-            if (d.error) { 
-              setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: `ERROR: ${d.error}` } : m)); 
-            }
-          } catch (e) {
-            console.error('SSE Parse Error:', e, trimmed);
           }
         }
       }

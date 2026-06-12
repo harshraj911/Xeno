@@ -1,6 +1,6 @@
 {
   "name": "xeno-crm-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Xeno AI-Native Mini CRM Backend",
   "main": "src/index.js",
   "type": "module",

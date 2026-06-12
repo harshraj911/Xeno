@@ -76,7 +76,13 @@ function Msg({ msg }) {
       }`}>
         {msg.streaming
           ? <>{msg.content}<motion.span animate={{ opacity: [1, 0] }} transition={{ duration: 0.5, repeat: Infinity }} className="inline-block w-0.5 h-3.5 bg-white ml-0.5 align-middle" /></>
-          : <div className="whitespace-pre-wrap">{msg.content.split('```json')[0].trim()}</div>
+          : (() => {
+              const parts = msg.content.split('```json');
+              const verbal = parts[0].trim();
+              if (verbal) return <div className="whitespace-pre-wrap">{verbal}</div>;
+              if (parts.length > 1) return <div className="text-[10px] font-mono text-zinc-500 italic">Executing command...</div>;
+              return <div className="whitespace-pre-wrap">{msg.content}</div>;
+            })()
         }
       </div>
     </motion.div>

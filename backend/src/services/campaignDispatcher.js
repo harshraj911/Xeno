@@ -66,7 +66,11 @@ export async function checkCampaignCompletion(campaignId) {
 
 let CHANNEL_SERVICE_URL = process.env.CHANNEL_SERVICE_URL || 'http://localhost:5000';
 if (CHANNEL_SERVICE_URL && !CHANNEL_SERVICE_URL.startsWith('http')) {
-  CHANNEL_SERVICE_URL = `http://${CHANNEL_SERVICE_URL}`;
+  const isPublic = CHANNEL_SERVICE_URL.includes('onrender.com');
+  const protocol = isPublic ? 'https' : 'http';
+  // If internal render host, it needs the port (5000 for channel service)
+  const needsPort = !isPublic && !CHANNEL_SERVICE_URL.includes(':') && !CHANNEL_SERVICE_URL.includes('localhost');
+  CHANNEL_SERVICE_URL = `${protocol}://${CHANNEL_SERVICE_URL}${needsPort ? ':5000' : ''}`;
 }
 
 // Queue definitions

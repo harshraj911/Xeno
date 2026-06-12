@@ -45,7 +45,7 @@ services:
   - type: web
     name: xeno-frontend
     runtime: static
-    plan: free
+    # plan: free is removed as it's not applicable to static runtimes in blueprints
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     rootDir: frontend

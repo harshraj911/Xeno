@@ -1,8 +1,67 @@
-import { Queue, Worker, QueueEvents } from 'bullmq';
+import { Queue, Worker } from 'bullmq';
 import axios from 'axios';
 import { prisma } from '../utils/prisma.js';
 import { redisConnection } from '../utils/redis.js';
 import { logger } from '../utils/logger.js';
+
+// ── Completion helper ───────────────────────────────────────────────────────
+// Called after every terminal message outcome. Marks the campaign as
+// 'completed' once all communications have settled (sent/delivered/failed).
+export async function checkCampaignCompletion(campaignId) {
+  try {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { status: true, totalSent: true }
+    });
+
+    if (!campaign || (campaign.status !== 'running' && campaign.status !== 'paused')) return;
+    
+    // Recalculate terminal counts to be the source of truth
+    const terminalStats = await prisma.communication.groupBy({
+      by: ['status'],
+      where: { campaignId },
+      _count: { id: true }
+    });
+
+    const statusMap = terminalStats.reduce((acc, curr) => {
+      acc[curr.status] = curr._count.id;
+      return acc;
+    }, {});
+
+    const sentCount = statusMap.sent || 0;
+    const deliveredCount = (statusMap.delivered || 0) + (statusMap.opened || 0) + (statusMap.read || 0) + (statusMap.clicked || 0) + (statusMap.converted || 0);
+    const failedCount = statusMap.failed || 0;
+    const terminalCount = sentCount + deliveredCount + failedCount;
+
+    // Use the stored totalSent (recipients count) for comparison
+    const targetCount = campaign.totalSent || 0;
+
+    if (targetCount > 0 && terminalCount >= targetCount) {
+      await prisma.campaign.update({
+        where: { id: campaignId },
+        data: {
+          status: 'completed',
+          completedAt: new Date(),
+          totalFailed: failedCount,
+          totalDelivered: deliveredCount,
+          totalSent: targetCount // Ensure this remains consistent
+        }
+      });
+      logger.info(`✅ Campaign ${campaignId} completed: ${terminalCount}/${targetCount} handled (${failedCount} errors)`);
+    } else {
+      // Periodic update of counters even if not complete
+      await prisma.campaign.update({
+        where: { id: campaignId },
+        data: {
+          totalFailed: failedCount,
+          totalDelivered: deliveredCount
+        }
+      });
+    }
+  } catch (err) {
+    logger.error(`checkCampaignCompletion error for ${campaignId}:`, err.message);
+  }
+}
 
 const CHANNEL_SERVICE_URL = process.env.CHANNEL_SERVICE_URL || 'http://localhost:5000';
 
@@ -81,7 +140,7 @@ const campaignWorker = new Worker(
       });
     }
 
-    // Update campaign stats
+    // Update campaign total recipient count
     await prisma.campaign.update({
       where: { id: campaignId },
       data: { totalSent: customers.length }
@@ -125,6 +184,7 @@ const messageWorker = new Worker(
         where: { id: communicationId },
         data: { status: 'failed', failureReason: 'Customer not found', failedAt: new Date() }
       });
+      await checkCampaignCompletion(campaignId);
       return;
     }
 
@@ -152,8 +212,14 @@ const messageWorker = new Worker(
         }
       });
 
+      // Check if campaign is now complete
+      await checkCampaignCompletion(campaignId);
+
     } catch (err) {
-      logger.error(`Failed to send message ${communicationId}:`, err.message);
+      const isFinalAttempt = job.attemptsMade >= (job.opts.attempts || 3) - 1;
+      
+      logger.error(`Failed to send message ${communicationId} (attempt ${job.attemptsMade + 1}):`, err.message);
+      
       await prisma.communication.update({
         where: { id: communicationId },
         data: {
@@ -164,11 +230,9 @@ const messageWorker = new Worker(
         }
       });
 
-      // Update campaign failed count
-      await prisma.campaign.update({
-        where: { id: campaignId },
-        data: { totalFailed: { increment: 1 } }
-      });
+      // We DON'T manually increment totalFailed here anymore. 
+      // checkCampaignCompletion will recalculate it accurately.
+      await checkCampaignCompletion(campaignId);
 
       throw err; // Let BullMQ handle retry
     }
@@ -191,13 +255,18 @@ messageWorker.on('completed', (job) => {
   logger.debug(`Message job ${job.id} completed`);
 });
 
-messageWorker.on('failed', (job, err) => {
-  logger.error(`Message job ${job?.id} failed after retries:`, err.message);
+// BullMQ v5: 'failed' fires only when ALL retries are exhausted
+messageWorker.on('failed', async (job, err) => {
+  if (!job) return;
+  logger.warn(`Message job ${job.id} finally failed after ${job.attemptsMade} attempts: ${err.message}`);
+  if (job.data?.campaignId) {
+    await checkCampaignCompletion(job.data.campaignId);
+  }
 });
 
 // Personalize message template
 function personalizeMessage(template, customer) {
-  return template
+  return (template || '')
     .replace(/{{name}}/gi, customer.name || 'Valued Customer')
     .replace(/{{email}}/gi, customer.email || '')
     .replace(/{{city}}/gi, customer.city || '')

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../utils/prisma.js';
 import { logger } from '../utils/logger.js';
+import { checkCampaignCompletion } from '../services/campaignDispatcher.js';
 
 const router = Router();
 
@@ -20,15 +21,6 @@ const STATUS_TIMESTAMP_MAP = {
   clicked: 'clickedAt',
   converted: 'convertedAt',
   failed: 'failedAt'
-};
-
-const CAMPAIGN_COUNT_MAP = {
-  delivered: 'totalDelivered',
-  opened: 'totalOpened',
-  read: 'totalRead',
-  clicked: 'totalClicked',
-  converted: 'totalConverted',
-  failed: 'totalFailed'
 };
 
 // POST /api/receipts/callback - called by channel service
@@ -80,7 +72,6 @@ async function processReceiptEvent(event) {
 
   // Allow certain status upgrades only
   const timestampField = STATUS_TIMESTAMP_MAP[status];
-  const campaignField = CAMPAIGN_COUNT_MAP[status];
 
   const updateData = {
     status,
@@ -90,37 +81,13 @@ async function processReceiptEvent(event) {
   if (timestampField) updateData[timestampField] = new Date();
   if (status === 'failed' && reason) updateData.failureReason = reason;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.communication.update({
-      where: { id: messageId },
-      data: updateData
-    });
-
-    // Update campaign aggregate counters
-    if (campaignField) {
-      await tx.campaign.update({
-        where: { id: comm.campaignId },
-        data: { [campaignField]: { increment: 1 } }
-      });
-    }
-
-    // Check if campaign is fully delivered
-    const campaign = await tx.campaign.findUnique({
-      where: { id: comm.campaignId },
-      select: { status: true, totalSent: true, totalDelivered: true, totalFailed: true }
-    });
-
-    if (campaign && campaign.status === 'running') {
-      const processed = campaign.totalDelivered + campaign.totalFailed;
-      if (processed >= campaign.totalSent && campaign.totalSent > 0) {
-        await tx.campaign.update({
-          where: { id: comm.campaignId },
-          data: { status: 'completed', completedAt: new Date() }
-        });
-        logger.info(`Campaign ${comm.campaignId} marked as completed`);
-      }
-    }
+  await prisma.communication.update({
+    where: { id: messageId },
+    data: updateData
   });
+
+  // Use unified completion helper to sync campaign stats and status
+  await checkCampaignCompletion(comm.campaignId);
 
   logger.debug(`Receipt processed: ${messageId} -> ${status}`);
 }

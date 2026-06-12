@@ -25,9 +25,14 @@ services:
           type: redis
           name: xeno-redis
           property: connectionString
+      - key: CHANNEL_SERVICE_URL
+        fromService:
+          type: web
+          name: xeno-channel-service
+          property: host
 
-  # Xeno Channel Stub Service
-  - type: worker
+  # Xeno Channel Stub Service (Now as a Web Service for Free Plan support)
+  - type: web
     name: xeno-channel-service
     env: node
     plan: free
@@ -40,12 +45,17 @@ services:
           type: redis
           name: xeno-redis
           property: connectionString
+      - key: CRM_CALLBACK_URL
+        fromService:
+          type: web
+          name: xeno-backend
+          property: host
+        generateValue: "${value}/api/receipts/callback"
 
   # Xeno Frontend (Static Site)
   - type: web
     name: xeno-frontend
     runtime: static
-    # plan: free is removed as it's not applicable to static runtimes in blueprints
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     rootDir: frontend

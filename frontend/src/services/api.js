@@ -3,6 +3,10 @@ import toast from 'react-hot-toast';
 
 let BASE_URL = import.meta.env.VITE_API_URL || '/api';
 if (BASE_URL && !BASE_URL.startsWith('http') && !BASE_URL.startsWith('/')) {
+  // If it's a Render internal host (no dots), append the public suffix
+  if (!BASE_URL.includes('.')) {
+    BASE_URL = `${BASE_URL}.onrender.com`;
+  }
   BASE_URL = `https://${BASE_URL}`;
 }
 

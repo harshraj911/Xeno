@@ -10,8 +10,8 @@ services:
     name: xeno-backend
     env: node
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    buildCommand: npm install && npx prisma generate
+    startCommand: npx prisma migrate deploy && node src/index.js
     rootDir: backend
     envVars:
       - key: NODE_ENV

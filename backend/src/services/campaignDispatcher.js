@@ -68,9 +68,11 @@ let CHANNEL_SERVICE_URL = process.env.CHANNEL_SERVICE_URL || 'http://localhost:5
 if (CHANNEL_SERVICE_URL && !CHANNEL_SERVICE_URL.startsWith('http')) {
   const isPublic = CHANNEL_SERVICE_URL.includes('onrender.com');
   const protocol = isPublic ? 'https' : 'http';
-  // If internal render host, it needs the port (5000 for channel service)
+  // Render internal discovery requires the port. Default to 10000 if on Render, else 5000.
+  const isRender = !!process.env.RENDER;
+  const defaultPort = isRender ? '10000' : '5000';
   const needsPort = !isPublic && !CHANNEL_SERVICE_URL.includes(':') && !CHANNEL_SERVICE_URL.includes('localhost');
-  CHANNEL_SERVICE_URL = `${protocol}://${CHANNEL_SERVICE_URL}${needsPort ? ':5000' : ''}`;
+  CHANNEL_SERVICE_URL = `${protocol}://${CHANNEL_SERVICE_URL}${needsPort ? `:${defaultPort}` : ''}`;
 }
 
 // Queue definitions

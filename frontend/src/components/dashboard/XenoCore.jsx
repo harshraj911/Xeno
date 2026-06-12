@@ -10,7 +10,7 @@ function CoreSphere({ revenue, customers }) {
   const ring2Ref = useRef();
 
   useFrame((state) => {
-    const t = state.performance.current / 1000;
+    const t = state.clock.getElapsedTime();
     if (meshRef.current) {
       meshRef.current.rotation.y = t * 0.15;
       meshRef.current.rotation.x = Math.sin(t * 0.3) * 0.1;
@@ -99,7 +99,7 @@ function ParticleField() {
   const pointsRef = useRef();
   useFrame((state) => {
     if (pointsRef.current) {
-      pointsRef.current.rotation.y = (state.performance.current / 1000) * 0.03;
+      pointsRef.current.rotation.y = state.clock.getElapsedTime() * 0.03;
     }
   });
 
@@ -115,16 +115,27 @@ function ParticleField() {
 
 export default function XenoCore({ revenue = 0, customers = 0 }) {
   return (
-    <Canvas
-      camera={{ position: [0, 0, 5], fov: 50 }}
-      style={{ background: 'transparent' }}
-      dpr={[1, 2]}
-      powerPreference="high-performance"
-      gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-    >
-      <ambientLight intensity={0.1} />
-      <ParticleField />
-      <CoreSphere revenue={revenue} customers={customers} />
-    </Canvas>
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <Canvas
+        camera={{ position: [0, 0, 5], fov: 50 }}
+        style={{ background: 'transparent' }}
+        dpr={[1, 2]}
+        powerPreference="high-performance"
+        gl={{ 
+          antialias: true, 
+          alpha: true, 
+          stencil: false,
+          depth: true,
+          powerPreference: 'high-performance' 
+        }}
+        onCreated={({ gl }) => {
+          gl.setClearColor(0x000000, 0);
+        }}
+      >
+        <ambientLight intensity={0.1} />
+        <ParticleField />
+        <CoreSphere revenue={revenue} customers={customers} />
+      </Canvas>
+    </div>
   );
 }

@@ -17,12 +17,15 @@ if (CRM_CALLBACK_URL && !CRM_CALLBACK_URL.startsWith('http')) {
   const isPublic = CRM_CALLBACK_URL.includes('onrender.com');
   const protocol = isPublic ? 'https' : 'http';
   const hasPath = CRM_CALLBACK_URL.includes('/');
+  // Render internal discovery requires the port. Default to 10000 if on Render, else 4000.
+  const isRender = !!process.env.RENDER;
+  const defaultPort = isRender ? '10000' : '4000';
   const needsPort = !isPublic && !CRM_CALLBACK_URL.includes(':') && !CRM_CALLBACK_URL.includes('localhost');
   
   if (hasPath) {
     CRM_CALLBACK_URL = `${protocol}://${CRM_CALLBACK_URL}`;
   } else {
-    CRM_CALLBACK_URL = `${protocol}://${CRM_CALLBACK_URL}${needsPort ? ':4000' : ''}/api/receipts/callback`;
+    CRM_CALLBACK_URL = `${protocol}://${CRM_CALLBACK_URL}${needsPort ? `:${defaultPort}` : ''}/api/receipts/callback`;
   }
 }
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';

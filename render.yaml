@@ -1,0 +1,61 @@
+services:
+  # Xeno Backend
+  - type: web
+    name: xeno-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    rootDir: backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: xeno-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: xeno-redis
+          property: connectionString
+
+  # Xeno Channel Stub Service
+  - type: worker
+    name: xeno-channel-service
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    rootDir: channel-service
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: xeno-redis
+          property: connectionString
+
+  # Xeno Frontend
+  - type: web
+    name: xeno-frontend
+    env: static
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishDir: dist
+    rootDir: frontend
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: xeno-backend
+          property: host
+
+databases:
+  - name: xeno-db
+    plan: free
+    databaseName: xenocrm
+
+redis:
+  - name: xeno-redis
+    plan: free
+    ipAllowList: [] # Only allow internal connections

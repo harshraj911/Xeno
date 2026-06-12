@@ -22,5 +22,5 @@ RUN mkdir -p logs
 
 EXPOSE 4000
 
-# Run migrations then start
-CMD ["sh", "-c", "npx prisma migrate deploy && node src/index.js"]
+# Sync database and start
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node src/index.js"]

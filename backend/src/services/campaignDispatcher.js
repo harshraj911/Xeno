@@ -53,13 +53,25 @@ const campaignWorker = new Worker(
     logger.info(`Dispatching to ${customers.length} customers for campaign ${campaignId}`);
 
     // Create all communication records first
-    const commsData = customers.map((customer) => ({
-      campaignId,
-      customerId: customer.id,
-      channel: campaign.channel,
-      message: personalizeMessage(campaign.messageTemplate, customer),
-      status: 'queued'
-    }));
+    const commsData = customers.map((customer) => {
+      let channel = campaign.channel;
+      let template = campaign.messageTemplate;
+
+      if (channel === 'omnichannel') {
+        channel = customer.channel || 'email';
+        if (campaign.templates && campaign.templates[channel]) {
+          template = campaign.templates[channel];
+        }
+      }
+
+      return {
+        campaignId,
+        customerId: customer.id,
+        channel,
+        message: personalizeMessage(template, customer),
+        status: 'queued'
+      };
+    });
 
     // Batch insert
     const BATCH_SIZE = 500;

@@ -31,8 +31,17 @@ router.get('/', async (req, res) => {
       prisma.campaign.count({ where })
     ]);
 
+    const campaignsWithStats = await Promise.all(campaigns.map(async (c) => {
+      const channelStats = await prisma.communication.groupBy({
+        by: ['channel'],
+        where: { campaignId: c.id },
+        _count: { id: true }
+      });
+      return { ...c, channelStats: channelStats.reduce((acc, curr) => ({ ...acc, [curr.channel]: curr._count.id }), {}) };
+    }));
+
     res.json({
-      data: campaigns,
+      data: campaignsWithStats,
       pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / Number(limit)) }
     });
   } catch (err) {
@@ -121,7 +130,7 @@ router.post('/',
   [
     body('name').trim().notEmpty(),
     body('segmentId').notEmpty(),
-    body('channel').isIn(['whatsapp', 'sms', 'email', 'rcs']),
+    body('channel').isIn(['whatsapp', 'sms', 'email', 'rcs', 'omnichannel']),
     body('messageTemplate').trim().notEmpty()
   ],
   async (req, res) => {
@@ -149,7 +158,7 @@ router.post('/ai-create', async (req, res) => {
     const segment = await prisma.segment.findUnique({ where: { id: segmentId } });
     if (!segment) return res.status(404).json({ error: 'Segment not found' });
 
-    // If no channel specified, suggest one
+    // Suggest channel if not provided
     let channel = requestedChannel;
     let channelReason = null;
     if (!channel) {
@@ -158,14 +167,15 @@ router.post('/ai-create', async (req, res) => {
       channelReason = suggestion.reason;
     }
 
-    // Generate message
-    const message = await generateCampaignMessage(intent, channel, segment.description || segment.name);
+    // Generate all versions
+    const messages = await generateCampaignMessage(intent, segment.description || segment.name);
 
     res.json({
       name: `AI Campaign - ${new Date().toLocaleDateString()}`,
       segmentId,
       channel,
-      messageTemplate: message,
+      messageTemplate: messages[channel] || messages.whatsapp || Object.values(messages)[0],
+      messages, // Return all versions for preview
       channelReason,
       aiGenerated: true,
       aiPrompt: intent
@@ -178,11 +188,11 @@ router.post('/ai-create', async (req, res) => {
 // POST /api/campaigns/ai-message - generate message only
 router.post('/ai-message', async (req, res) => {
   try {
-    const { intent, channel, segmentDescription } = req.body;
-    if (!intent || !channel) return res.status(400).json({ error: 'intent and channel required' });
+    const { intent, segmentDescription } = req.body;
+    if (!intent) return res.status(400).json({ error: 'intent required' });
 
-    const message = await generateCampaignMessage(intent, channel, segmentDescription || 'general audience');
-    res.json({ message });
+    const messages = await generateCampaignMessage(intent, segmentDescription || 'general audience');
+    res.json({ messages });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -264,5 +274,16 @@ router.get('/:id/insights', async (req, res) => {
   }
 });
 
+
+// DELETE /api/campaigns/:id
+router.delete('/:id', async (req, res) => {
+  try {
+    await prisma.campaign.delete({ where: { id: req.params.id } });
+    await cache.del('analytics:dashboard');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 export default router;

@@ -20,7 +20,7 @@ router.post('/chat', async (req, res) => {
     }
 
     // Get context for AI
-    const [customerCount, campaignCount, segmentCount, revenue] = await Promise.all([
+    const [customerCount, campaignCount, segmentCount, revenue, segments, recentCampaigns] = await Promise.all([
       prisma.customer.count(),
       prisma.campaign.count(),
       prisma.segment.count({ where: { isActive: true } }),
@@ -30,6 +30,16 @@ router.post('/chat', async (req, res) => {
           status: 'completed'
         },
         _sum: { amount: true }
+      }),
+      prisma.segment.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true },
+        take: 10
+      }),
+      prisma.campaign.findMany({
+        select: { id: true, name: true, status: true },
+        orderBy: { createdAt: 'desc' },
+        take: 10
       })
     ]);
 
@@ -37,7 +47,9 @@ router.post('/chat', async (req, res) => {
       totalCustomers: customerCount,
       totalCampaigns: campaignCount,
       activeSegments: segmentCount,
-      monthlyRevenue: revenue._sum.amount || 0
+      monthlyRevenue: revenue._sum.amount || 0,
+      segments: segments.map(s => `${s.name} (ID: ${s.id})`).join(', '),
+      campaigns: recentCampaigns.map(c => `${c.name} [${c.status}] (ID: ${c.id})`).join(', ')
     };
 
     // Set up SSE

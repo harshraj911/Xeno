@@ -108,6 +108,7 @@ model Campaign {
   aiGenerated     Boolean   @default(false) @map("ai_generated")
   aiPrompt        String?   @map("ai_prompt")
   status          String    @default("draft") // draft, scheduled, running, completed, paused, failed
+  templates       Json?     // Stores { whatsapp, email, sms, rcs } versions
   scheduledAt     DateTime? @map("scheduled_at")
   startedAt       DateTime? @map("started_at")
   completedAt     DateTime? @map("completed_at")
@@ -122,7 +123,7 @@ model Campaign {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  segment         Segment   @relation(fields: [segmentId], references: [id])
+  segment         Segment   @relation(fields: [segmentId], references: [id], onDelete: Cascade)
   communications  Communication[]
 
   @@index([status])
@@ -153,8 +154,8 @@ model Communication {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  campaign        Campaign  @relation(fields: [campaignId], references: [id])
-  customer        Customer  @relation(fields: [customerId], references: [id])
+  campaign        Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([campaignId])
   @@index([customerId])

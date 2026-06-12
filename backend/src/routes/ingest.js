@@ -206,7 +206,58 @@ async function seedDemoData(count = 500) {
   }
 
   await recomputeCustomerAggregates();
-  logger.info(`Seeded ${count} customers and ${orders.length} orders`);
+
+  // Seed sample segments
+  const vipSegment = await prisma.segment.create({
+    data: {
+      name: 'VIP Customers',
+      description: 'High spenders (> ₹50,000)',
+      rules: { conditions: [{ field: 'totalSpend', op: 'gte', value: 50000 }] },
+      customerCount: Math.floor(count * 0.1),
+      isActive: true
+    }
+  });
+
+  const inactiveSegment = await prisma.segment.create({
+    data: {
+      name: 'Inactive (30d)',
+      description: 'Customers with no recent activity',
+      rules: { conditions: [{ field: 'lastOrderAt', op: 'daysAgo_gte', value: 30 }] },
+      customerCount: Math.floor(count * 0.2),
+      isActive: true
+    }
+  });
+
+  // Seed sample campaigns
+  await prisma.campaign.createMany({
+    data: [
+      {
+        name: 'Summer Sale 2026',
+        segmentId: vipSegment.id,
+        channel: 'whatsapp',
+        status: 'running',
+        messageTemplate: 'Hi {{name}}, enjoy our exclusive Summer Sale!',
+        totalSent: 100,
+        totalDelivered: 98,
+        totalOpened: 45,
+        startedAt: new Date()
+      },
+      {
+        name: 'React Order Fallback',
+        segmentId: inactiveSegment.id,
+        channel: 'email',
+        status: 'completed',
+        messageTemplate: 'We miss you! Here is a 20% discount.',
+        totalSent: 200,
+        totalDelivered: 195,
+        totalOpened: 120,
+        startedAt: new Date(Date.now() - 7 * 86400000),
+        completedAt: new Date()
+      }
+    ]
+  });
+
+  logger.info(`Seeded ${count} customers, segments, and campaigns.`);
 }
 
 export default router;

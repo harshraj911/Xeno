@@ -1,20 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { analyticsApi } from '../services/api.js';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { analyticsApi, segmentsApi, campaignsApi } from '../services/api.js';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User, RefreshCw, Zap, Terminal } from 'lucide-react';
+import { Send, Bot, User, RefreshCw, Zap, Terminal, Check, Info, AlertCircle, Trash2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import toast from 'react-hot-toast';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 const API  = BASE.endsWith('/api') ? BASE : `${BASE}/api`;
 
 const SUGGESTIONS = [
   { text: "Find high-value customers who haven't ordered in 60+ days", tag: 'SEG' },
+  { text: "Create a segment for Delhi customers who spent ₹10k+",    tag: 'ACT' },
   { text: "Write a win-back WhatsApp message for lapsed customers",    tag: 'MSG' },
-  { text: "Which channel has the best open rates this month?",          tag: 'INS' },
-  { text: "Customers who spent ₹5000+ in the last 30 days",           tag: 'SEG' },
-  { text: "Draft a flash-sale SMS for VIP customers",                  tag: 'MSG' },
-  { text: "Analyze my overall campaign performance",                   tag: 'INS' },
+  { text: "Which channel has the best open rates? Analyze data.",       tag: 'INS' },
+  { text: "Delete my oldest draft campaign",                           tag: 'ACT' },
 ];
 
 /* ── Typing Indicator ─────────────────────────────── */
@@ -42,6 +42,19 @@ function TypingIndicator() {
 /* ── Message Bubble ───────────────────────────────── */
 function Msg({ msg }) {
   const isUser = msg.role === 'user';
+  const isSystem = msg.role === 'system_executed';
+
+  if (isSystem) {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center my-2">
+        <div className="flex items-center gap-2 px-3 py-1.5 border border-white/10 bg-white/[0.02] text-[9px] font-black uppercase tracking-widest text-zinc-500">
+          <Check size={10} className="text-white" />
+          {msg.content}
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
@@ -64,7 +77,7 @@ function Msg({ msg }) {
       }`}>
         {msg.streaming
           ? <>{msg.content}<motion.span animate={{ opacity: [1, 0] }} transition={{ duration: 0.5, repeat: Infinity }} className="inline-block w-0.5 h-3.5 bg-white ml-0.5 align-middle" /></>
-          : <div className="whitespace-pre-wrap">{msg.content}</div>
+          : <div className="whitespace-pre-wrap">{msg.content.split('```json')[0].trim()}</div>
         }
       </div>
     </motion.div>
@@ -72,14 +85,21 @@ function Msg({ msg }) {
 }
 
 export default function AiAssistant() {
-  const [msgs, setMsgs] = useState([{
-    id: 'welcome', role: 'assistant',
-    content: `XENO AI COMMAND CONSOLE ONLINE.\n\nI am your intelligent CRM co-pilot. Query capabilities:\n→ Identify audience segments from natural language\n→ Draft personalized campaign messages\n→ Analyze campaign performance data\n→ Surface and correlate customer insights\n\nEnter command:`
-  }]);
+  const qc = useQueryClient();
+  const [msgs, setMsgs] = useState([]);
   const [input, setInput]   = useState('');
   const [loading, setLoad]  = useState(false);
   const [thinking, setThink] = useState(false);
-  const sessId  = useRef(uuidv4());
+  
+  // Persistence logic
+  const [sessionId, setSessionId] = useState(() => {
+    const saved = localStorage.getItem('xeno_ai_session');
+    if (saved) return saved;
+    const newId = uuidv4();
+    localStorage.setItem('xeno_ai_session', newId);
+    return newId;
+  });
+
   const bottom  = useRef(null);
   const inputRef = useRef(null);
 
@@ -90,7 +110,77 @@ export default function AiAssistant() {
     staleTime: Infinity
   });
 
+  // Load history on mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const resp = await fetch(`${API}/ai/conversation/${sessionId}`);
+        const data = await resp.json();
+        if (data.length > 0) {
+          setMsgs(data.map(m => ({ id: m.id, role: m.role, content: m.content })));
+        } else {
+          setMsgs([{
+            id: 'welcome', role: 'assistant',
+            content: `XENO AI COMMAND CONSOLE ONLINE.\n\nI am your intelligent CRM co-pilot. Query capabilities:\n→ Identify audience segments from natural language\n→ Draft personalized campaign messages\n→ Analyze campaign performance data\n→ Surface and correlate customer insights\n\nEnter command:`
+          }]);
+        }
+      } catch (err) {
+        console.error('Failed to load history', err);
+      }
+    };
+    loadHistory();
+  }, [sessionId]);
+
   useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
+
+  const executeCommand = async (fullText) => {
+    // Look for any code block with json or just triple backticks
+    const jsonMatch = fullText.match(/```(?:json)?\n?([\s\S]*?)```/);
+    if (!jsonMatch) return;
+
+    try {
+      const cleanJson = jsonMatch[1].trim();
+      const { command, payload } = JSON.parse(cleanJson);
+      let result = null;
+
+      switch (command) {
+        case 'CREATE_SEGMENT':
+          result = await segmentsApi.create(payload);
+          qc.invalidateQueries(['segments']);
+          qc.invalidateQueries(['dashboard']);
+          toast.success(`Segment "${payload.name}" created via AI`);
+          setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Created segment: ${payload.name}` }]);
+          break;
+        case 'DELETE_SEGMENT':
+          await segmentsApi.delete(payload.segmentId);
+          qc.invalidateQueries(['segments']);
+          qc.invalidateQueries(['dashboard']);
+          toast.success(`Segment deleted via AI`);
+          setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Deleted segment ID: ${payload.segmentId}` }]);
+          break;
+        case 'CREATE_CAMPAIGN':
+          result = await campaignsApi.create(payload);
+          qc.invalidateQueries(['campaigns']);
+          qc.invalidateQueries(['dashboard']);
+          toast.success(`Campaign "${payload.name}" drafted via AI`);
+          setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Drafted campaign: ${payload.name}` }]);
+          break;
+        case 'DELETE_CAMPAIGN':
+          await campaignsApi.delete(payload.campaignId);
+          qc.invalidateQueries(['campaigns']);
+          qc.invalidateQueries(['dashboard']);
+          toast.success(`Campaign deleted via AI`);
+          setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Deleted campaign ID: ${payload.campaignId}` }]);
+          break;
+        default:
+          console.warn('Unknown AI command:', command);
+      }
+    } catch (err) {
+      console.error('Failed to execute AI command', err);
+      const msg = err.response?.data?.error || err.response?.data?.errors?.[0]?.msg || err.message;
+      toast.error(`AI Task Failed: ${msg}`);
+    }
+  };
 
   const send = async (text = input) => {
     if (!text.trim() || loading) return;
@@ -99,13 +189,20 @@ export default function AiAssistant() {
     setMsgs(p => [...p, { id: uid, role: 'user', content: text }, { id: aid, role: 'assistant', content: '', streaming: true }]);
     setInput(''); setLoad(true); setThink(true);
 
-    const history = [...msgs.slice(-12), { role: 'user', content: text }].map(({ role, content }) => ({ role, content }));
+    const history = msgs
+      .filter(m => m.role !== 'system_executed')
+      .slice(-10)
+      .map(({ role, content }) => ({ 
+        role, 
+        content: content.replace(/```(?:json)?\n?([\s\S]*?)```/g, '').trim() 
+      }));
+    history.push({ role: 'user', content: text });
 
     try {
       const resp = await fetch(`${API}/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history, sessionId: sessId.current })
+        body: JSON.stringify({ messages: history, sessionId })
       });
       if (!resp.ok) throw new Error('AI unavailable');
       const reader  = resp.body.getReader();
@@ -119,7 +216,11 @@ export default function AiAssistant() {
           try {
             const d = JSON.parse(line.slice(6));
             if (d.delta) { full += d.delta; setMsgs(p => p.map(m => m.id === aid ? { ...m, content: full } : m)); }
-            if (d.done || d.error) { setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: d.error ? `ERROR: ${d.error}` : full } : m)); }
+            if (d.done) { 
+              setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: full } : m));
+              executeCommand(full);
+            }
+            if (d.error) { setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: `ERROR: ${d.error}` } : m)); }
           } catch {}
         }
       }
@@ -127,6 +228,13 @@ export default function AiAssistant() {
       setThink(false);
       setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: 'ERROR: AI subsystem unavailable. Check your API key configuration.' } : m));
     } finally { setLoad(false); inputRef.current?.focus(); }
+  };
+
+  const clearChat = () => {
+    const newId = uuidv4();
+    setSessionId(newId);
+    localStorage.setItem('xeno_ai_session', newId);
+    setMsgs([{ id: 'w', role: 'assistant', content: 'Console cleared. New session started. Enter command:' }]);
   };
 
   const provLabel = prov ? [prov.groq && 'Groq', prov.nvidia && 'NVIDIA'].filter(Boolean).join(' + ') : '...';
@@ -172,15 +280,15 @@ export default function AiAssistant() {
         )}
 
         <button
-          onClick={() => { setMsgs([{ id: 'w', role: 'assistant', content: 'Console cleared. Enter command:' }]); sessId.current = uuidv4(); }}
+          onClick={clearChat}
           className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-700 hover:text-white transition-all border border-white/5 hover:border-white/20"
         >
-          <RefreshCw size={9} /> Clear
+          <RefreshCw size={9} /> Reset Session
         </button>
       </motion.div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-3 px-1 pb-4">
+      <div className="flex-1 overflow-y-auto space-y-4 px-1 pb-4 scroll-smooth">
         <AnimatePresence>
           {msgs.map(m => <Msg key={m.id} msg={m} />)}
           {thinking && (
@@ -220,7 +328,7 @@ export default function AiAssistant() {
       {/* Input */}
       <motion.div
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-        className="border border-white/10 bg-[#050505] flex-shrink-0 relative overflow-hidden"
+        className="border border-white/10 bg-[#050505] flex-shrink-0 relative overflow-hidden mb-6"
         style={{ backdropFilter: 'blur(20px)' }}
       >
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-50" />
@@ -231,7 +339,7 @@ export default function AiAssistant() {
             value={input}
             onChange={e => { setInput(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-            placeholder="Enter command or ask a question..."
+            placeholder="Ask AI to create segments, draft campaigns, or analyze data..."
             className="flex-1 bg-transparent text-sm text-white placeholder:text-zinc-700 outline-none resize-none min-h-[36px] max-h-[120px] leading-relaxed font-mono"
             rows={1}
           />

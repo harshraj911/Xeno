@@ -25,14 +25,19 @@ const PORT = process.env.PORT || 4000;
 
 // Security & Middleware
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' }
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false // Relax for dev/demo if needed
 }));
 
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: '*', // Dynamic origin or '*' for maximum flexibility
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true
 }));
+
+// Preflight OPTIONS handler
+app.options('*', cors());
 
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
@@ -43,18 +48,18 @@ app.use(morgan('combined', {
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 mins
-  max: 500,
+  windowMs: 15 * 60 * 1000, 
+  max: 1000, // Increased
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' }
 });
 app.use('/api', limiter);
 
-// AI routes get a more generous limit
+// AI routes get a more generous limit for testing
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 30,
+  max: 100, // Increased from 30
   message: { error: 'AI rate limit reached, please slow down.' }
 });
 

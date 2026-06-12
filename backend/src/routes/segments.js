@@ -124,10 +124,10 @@ router.post('/ai-generate', async (req, res) => {
 
     const generated = await generateSegmentRules(prompt, {
       totalCustomers: stats._count.id,
-      avgSpend: Math.round(stats._avg.totalSpend || 0),
-      maxSpend: Math.round(stats._max.totalSpend || 0),
-      avgOrders: Math.round(stats._avg.orderCount || 0),
-      maxOrders: stats._max.orderCount || 0
+      totalSpend_avg: Math.round(stats._avg.totalSpend || 0),
+      totalSpend_max: Math.round(stats._max.totalSpend || 0),
+      orderCount_avg: Math.round(stats._avg.orderCount || 0),
+      orderCount_max: stats._max.orderCount || 0
     });
 
     // Count matching customers
@@ -160,6 +160,22 @@ router.post('/:id/refresh', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// GET /api/segments/:id/stats - channel distribution
+router.get('/:id/stats', async (req, res) => {
+  try {
+    const members = await prisma.segmentMember.findMany({
+      where: { segmentId: req.params.id },
+      include: { customer: { select: { channel: true } } }
+    });
+    const stats = members.reduce((acc, m) => {
+      const ch = m.customer.channel || 'email';
+      acc[ch] = (acc[ch] || 0) + 1;
+      return acc;
+    }, { whatsapp:0, email:0, sms:0, rcs:0 });
+    res.json(stats);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // PUT /api/segments/:id

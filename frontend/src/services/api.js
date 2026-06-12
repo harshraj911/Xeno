@@ -48,6 +48,7 @@ export const segmentsApi = {
   delete: (id) => api.delete(`/segments/${id}`),
   preview: (rules) => api.post('/segments/preview', { rules }),
   refresh: (id) => api.post(`/segments/${id}/refresh`),
+  stats: (id) => api.get(`/segments/${id}/stats`),
   members: (id, params) => api.get(`/segments/${id}/members`, { params }),
   aiGenerate: (prompt) => api.post('/segments/ai-generate', { prompt })
 };
@@ -61,6 +62,7 @@ export const campaignsApi = {
   pause: (id) => api.post(`/campaigns/${id}/pause`),
   stats: (id) => api.get(`/campaigns/${id}/stats`),
   insights: (id) => api.get(`/campaigns/${id}/insights`),
+  delete: (id) => api.delete(`/campaigns/${id}`),
   aiCreate: (data) => api.post('/campaigns/ai-create', data),
   aiMessage: (data) => api.post('/campaigns/ai-message', data)
 };

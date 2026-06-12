@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { campaignsApi, segmentsApi } from '../services/api.js';
@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
 const CH = [
+  {id:'omnichannel', label:'Omnichannel', color:'#facc15', bg:'rgba(250,204,21,0.05)'},
   {id:'whatsapp', label:'WhatsApp', color:'#ffffff', bg:'rgba(255,255,255,0.05)'},
   {id:'sms',      label:'SMS',      color:'#d4d4d8', bg:'rgba(255,255,255,0.03)'},
   {id:'email',    label:'Email',    color:'#71717a', bg:'rgba(255,255,255,0.02)'},
@@ -103,16 +104,27 @@ function CampaignCard({ c, onLaunch, onPause, idx }) {
           </div>
         )}
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          {c.status === 'draft' && (
-            <button
-              onClick={e => { e.stopPropagation(); onLaunch(c.id); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-colors"
-            >
-              <Play size={9} fill="currentColor" /> Launch
-            </button>
+        {/* Actions & Granular Stats */}
+        <div className="space-y-4">
+          {c.channel === 'omnichannel' && c.channelStats && Object.keys(c.channelStats).length > 0 && (
+            <div className="flex gap-2 border-t border-white/5 pt-3">
+              {Object.entries(c.channelStats).map(([ch, count]) => (
+                <div key={ch} className="text-[7px] text-zinc-600 font-black uppercase tracking-tighter">
+                  {ch}: <span className="text-zinc-300 font-mono">{count}</span>
+                </div>
+              ))}
+            </div>
           )}
+
+          <div className="flex items-center gap-2">
+            {c.status === 'draft' && (
+              <button
+                onClick={e => { e.stopPropagation(); onLaunch(c.id); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-colors"
+              >
+                <Play size={9} fill="currentColor" /> Launch
+              </button>
+            )}
           {c.status === 'running' && (
             <button
               onClick={e => { e.stopPropagation(); onPause(c.id); }}
@@ -123,6 +135,7 @@ function CampaignCard({ c, onLaunch, onPause, idx }) {
           )}
           <div className="ml-auto flex items-center gap-1 text-[9px] text-zinc-700 group-hover:text-zinc-500 transition-colors font-mono">
             View <ArrowRight size={9} />
+          </div>
           </div>
         </div>
       </div>
@@ -136,15 +149,40 @@ export default function Campaigns() {
   const [aiMode, setAiMode] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSugg, setAiSugg] = useState(null);
-  const [form, setForm] = useState({ name:'', segmentId:'', channel:'whatsapp', message:'', aiMessage:'' });
+  const [form, setForm] = useState({ name:'', segmentId:'', channel:'omnichannel', message:'', aiMessage:'' });
 
+  const [segStats, setSegStats] = useState(null);
   const { data: campsResp, isLoading } = useQuery({ queryKey:['campaigns'], queryFn:campaignsApi.list });
+
+  useEffect(() => {
+    if (form.segmentId) {
+      segmentsApi.stats(form.segmentId).then(setSegStats).catch(() => setSegStats(null));
+    } else {
+      setSegStats(null);
+    }
+  }, [form.segmentId]);
   const camps = campsResp?.data || [];
 
   const { data: segs=[] } = useQuery({ queryKey:['segments'], queryFn:segmentsApi.list });
-  const createMut = useMutation({ mutationFn:campaignsApi.create, onSuccess:()=>{ qc.invalidateQueries(['campaigns']); toast.success('Campaign created'); setShow(false); }});
-  const launchMut = useMutation({ mutationFn:campaignsApi.launch, onSuccess:()=>{ qc.invalidateQueries(['campaigns']); toast.success('Campaign launched'); }});
-  const pauseMut  = useMutation({ mutationFn:campaignsApi.pause,  onSuccess:()=>{ qc.invalidateQueries(['campaigns']); toast.success('Campaign paused'); }});
+  const createMut = useMutation({ mutationFn:campaignsApi.create, onSuccess:()=>{ 
+    qc.invalidateQueries(['campaigns']); 
+    qc.invalidateQueries(['dashboard']); 
+    qc.invalidateQueries(['dashboard-ai']); 
+    toast.success('Campaign created'); 
+    setShow(false); 
+  }});
+  const launchMut = useMutation({ mutationFn:campaignsApi.launch, onSuccess:()=>{ 
+    qc.invalidateQueries(['campaigns']); 
+    qc.invalidateQueries(['dashboard']); 
+    qc.invalidateQueries(['dashboard-ai']); 
+    toast.success('Campaign launched'); 
+  }});
+  const pauseMut  = useMutation({ mutationFn:campaignsApi.pause,  onSuccess:()=>{ 
+    qc.invalidateQueries(['campaigns']); 
+    qc.invalidateQueries(['dashboard']); 
+    qc.invalidateQueries(['dashboard-ai']); 
+    toast.success('Campaign paused'); 
+  }});
 
   const doAiMsg = async () => {
     if (!form.aiMessage.trim()) return;
@@ -152,19 +190,28 @@ export default function Campaigns() {
     try {
       const segName = segs.find(s => s.id === form.segmentId)?.name || 'general audience';
       const r = await campaignsApi.aiMessage({ 
-        intent: form.aiMessage, 
-        channel: form.channel,
+        intent: form.aiMessage,
         segmentDescription: segName
       });
-      setAiSugg(r);
+      setAiSugg(r.messages);
+      // Auto-set the current channel message if it exists
+      if (r.messages[form.channel]) {
+        setForm(f => ({ ...f, message: r.messages[form.channel] }));
+      }
     } catch { toast.error('AI generation failed'); }
     finally { setAiLoading(false); }
   };
 
   const submit = () => {
     if (!form.name || !form.segmentId) return toast.error('Name and segment required');
-    const msg = aiMode ? aiSugg?.message || form.aiMessage : form.message;
-    createMut.mutate({ name:form.name, segmentId:form.segmentId, channel:form.channel, messageTemplate:msg });
+    const msg = aiMode ? (aiSugg?.[form.channel] || Object.values(aiSugg || {})[0] || form.aiMessage) : form.message;
+    createMut.mutate({ 
+      name:form.name, 
+      segmentId:form.segmentId, 
+      channel:form.channel, 
+      messageTemplate:msg,
+      templates: aiMode ? aiSugg : null
+    });
   };
 
   return (
@@ -225,11 +272,21 @@ export default function Campaigns() {
                   <option value="">Select segment...</option>
                   {segs.map(s=><option key={s.id} value={s.id}>{s.name} ({s.customerCount})</option>)}
                 </select>
+                {segStats && (
+                  <div className="mt-2 flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+                    {Object.entries(segStats).map(([ch, count]) => (
+                      <div key={ch} className="flex-shrink-0 px-2 py-1 border border-white/5 bg-white/[0.01]">
+                        <div className="text-[7px] text-zinc-600 uppercase font-black tracking-tighter">{ch}</div>
+                        <div className="text-[10px] text-zinc-300 font-mono">{count}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="mb-4">
-              <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 block mb-1.5">Channel</label>
+              <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 block mb-1.5">Primary Target Channel</label>
               <div className="flex gap-2">
                 {CH.map(c=>(
                   <button key={c.id} onClick={()=>setForm({...form,channel:c.id})}
@@ -242,31 +299,42 @@ export default function Campaigns() {
             </div>
 
             {aiMode ? (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
-                  <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 block mb-1.5">AI Prompt</label>
+                  <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 block mb-1.5">AI Intent / Prompt</label>
                   <textarea value={form.aiMessage} onChange={e=>setForm({...form,aiMessage:e.target.value})}
-                    placeholder="Describe your campaign goal... (e.g. 'Win-back customers inactive for 90 days')"
-                    className="input min-h-[80px]" rows={3}/>
+                    placeholder="Describe your campaign goal... (e.g. 'Win-back customers inactive for 90 days with a 20% discount code')"
+                    className="input min-h-[60px]" rows={2}/>
                 </div>
                 <button onClick={doAiMsg} disabled={aiLoading||!form.aiMessage.trim()}
                   className="btn-monolith text-[9px] disabled:opacity-40 gap-2">
                   {aiLoading ? <RefreshCw size={12} className="animate-spin"/> : <Wand2 size={12}/>}
-                  {aiLoading ? 'Generating...' : 'Generate Message'}
+                  {aiLoading ? 'Synthesizing Versions...' : 'Generate Multi-Channel Creative'}
                 </button>
+                
                 <AnimatePresence>
                   {aiSugg && (
-                    <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}
-                      className="p-4 border border-white/15 bg-white/[0.03]">
-                      <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-2">Generated Message</p>
-                      <p className="text-sm text-zinc-200 font-medium leading-relaxed">{aiSugg.message}</p>
+                    <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} className="grid grid-cols-2 gap-3">
+                      {Object.entries(aiSugg).map(([chan, msg]) => (
+                        <div key={chan} 
+                          onClick={() => setForm({ ...form, channel: chan })}
+                          className={clsx("p-3 border transition-all cursor-pointer", 
+                            form.channel === chan ? "border-white bg-white/[0.05]" : "border-white/5 bg-white/[0.01] hover:border-white/20")}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[7px] font-black uppercase tracking-[0.3em] text-zinc-600">{chan}</span>
+                            {form.channel === chan && <div className="w-1 h-1 bg-white rounded-full" />}
+                          </div>
+                          <p className="text-[10px] text-zinc-400 line-clamp-3 font-mono leading-relaxed">{msg}</p>
+                        </div>
+                      ))}
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
             ) : (
               <div>
-                <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 block mb-1.5">Message *</label>
+                <label className="text-[8px] font-black uppercase tracking-widest text-zinc-600 block mb-1.5">Message Template *</label>
                 <textarea value={form.message} onChange={e=>setForm({...form,message:e.target.value})}
                   placeholder="Write your campaign message..." className="input min-h-[80px]" rows={3}/>
               </div>

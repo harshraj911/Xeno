@@ -32,7 +32,6 @@ router.get('/dashboard', async (req, res) => {
       prisma.customer.aggregate({ _count: { id: true }, _avg: { totalSpend: true } }),
       prisma.campaign.groupBy({ by: ['status'], _count: { id: true } }),
       prisma.campaign.findMany({
-        where: { status: { in: ['completed', 'running'] } },
         orderBy: { createdAt: 'desc' },
         take: 5,
         select: {

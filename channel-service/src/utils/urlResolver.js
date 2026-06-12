@@ -1,20 +1,25 @@
 export function resolveServiceUrl(envUrl, defaultPort, isRender = !!process.env.RENDER) {
-  let url = envUrl || `http://localhost:${defaultPort}`;
+  if (!envUrl) return `http://localhost:${defaultPort}`;
   
-  if (url && !url.startsWith('http')) {
-    const isPublic = url.includes('onrender.com');
-    const protocol = isPublic ? 'https' : 'http';
-    
-    const hasPath = url.includes('/');
-    const needsPort = !isPublic && !url.includes(':') && !url.includes('localhost');
-    const port = isRender ? '10000' : defaultPort;
-    
-    if (hasPath) {
-      url = `${protocol}://${url}`;
-    } else {
-      url = `${protocol}://${url}${needsPort ? `:${port}` : ''}`;
-    }
+  // If it already has a protocol, use it as is
+  if (envUrl.startsWith('http://') || envUrl.startsWith('https://')) {
+    return envUrl;
   }
+
+  const isPublic = envUrl.includes('onrender.com');
+  const protocol = isPublic ? 'https' : 'http';
+  const hasPath = envUrl.includes('/');
   
+  const needsPort = !isPublic && !envUrl.includes(':') && !envUrl.includes('localhost');
+  const port = isRender ? '10000' : defaultPort;
+
+  let url;
+  if (hasPath) {
+    url = `${protocol}://${envUrl}`;
+  } else {
+    url = `${protocol}://${envUrl}${needsPort ? `:${port}` : ''}`;
+  }
+
+  console.log(`[URL Resolver] Resolved "${envUrl}" to "${url}" (isRender: ${isRender})`);
   return url;
 }

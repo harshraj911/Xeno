@@ -30,6 +30,18 @@ services:
           type: web
           name: xeno-channel-service
           property: host
+      - key: GROQ_API_KEY
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: JWT_SECRET
+        generateValue: true
+      - key: LOG_LEVEL
+        value: info
+      - key: CORS_ORIGIN
+        value: '*'
 
   # Xeno Channel Stub Service
   - type: web

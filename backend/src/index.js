@@ -74,8 +74,8 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/ai', aiLimiter, aiRoutes);
 app.use('/api/ingest', ingestRoutes);
 
-// Health check
-app.get('/health', async (req, res) => {
+// Health check (shared logic)
+async function getHealthStatus() {
   const services = { database: 'down', api: 'up', channelService: 'down' };
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -92,11 +92,18 @@ app.get('/health', async (req, res) => {
   } catch (err) { /* ignore */ }
 
   const status = (services.database === 'up' && services.channelService === 'up') ? 'healthy' : 'degraded';
-  res.status(status === 'healthy' ? 200 : 207).json({
-    status,
-    timestamp: new Date().toISOString(),
-    services
-  });
+  return { status, timestamp: new Date().toISOString(), services };
+}
+
+app.get('/health', async (req, res) => {
+  const data = await getHealthStatus();
+  res.status(data.status === 'healthy' ? 200 : 207).json(data);
+});
+
+// Mirror under /api/health so frontend axios instance can reach it
+app.get('/api/health', async (req, res) => {
+  const data = await getHealthStatus();
+  res.status(data.status === 'healthy' ? 200 : 207).json(data);
 });
 
 // 404

@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { ingestApi, BASE_URL } from '../services/api.js';
+import { useQuery } from '@tanstack/react-query';
+import api, { ingestApi } from '../services/api.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Database, Sparkles, Server, RefreshCw, AlertTriangle, Zap, Activity, Trash2, Cpu, HardDrive } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
-const API = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
+
 
 export default function Settings() {
   const [seeding, setSeeding] = useState(false);
@@ -14,13 +14,15 @@ export default function Settings() {
 
   const { data: health } = useQuery({
     queryKey: ['health'],
-    queryFn: () => fetch(`${API.replace('/api','')||''}/health`).then(r=>r.json()),
-    refetchInterval: 10000
+    queryFn: () => api.get('/health'),
+    refetchInterval: 10000,
+    retry: 2
   });
   const { data: providers } = useQuery({
     queryKey: ['ai-providers'],
-    queryFn: () => fetch(`${API}/ai/providers`).then(r=>r.json()),
-    staleTime: Infinity
+    queryFn: () => api.get('/ai/providers'),
+    staleTime: Infinity,
+    retry: 1
   });
 
   const handleSeed = async () => {
@@ -36,6 +38,9 @@ export default function Settings() {
   };
 
   const isHealthy = health?.status === 'healthy';
+  const dbUp      = health?.services?.database      === 'up';
+  const apiUp     = health?.services?.api           === 'up' || !!health;
+  const chanUp    = health?.services?.channelService === 'up';
 
   return (
     <div className="space-y-8 max-w-[1000px]">
@@ -48,10 +53,10 @@ export default function Settings() {
       {/* Health Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label:'API Protocol',    status:health?.services?.api==='up' || isHealthy, icon:Server,    detail:'PORT: 4000' },
-          { label:'Core Database',   status:health?.services?.database==='up',         icon:Database,  detail:'PGSQL // ACTIVE' },
-          { label:'IO Channels',     status:health?.services?.channelService==='up',   icon:Activity,  detail:'STUB // PORT 5000' },
-          { label:'Message Queue',   status:health?.services?.api==='up' || isHealthy, icon:Zap,       detail:'BULLMQ // REDIS' },
+          { label:'API Protocol',    status: apiUp,  icon:Server,    detail:'PORT: 4000' },
+          { label:'Core Database',   status: dbUp,   icon:Database,  detail:'PGSQL // ACTIVE' },
+          { label:'IO Channels',     status: chanUp, icon:Activity,  detail:'STUB // PORT 5000' },
+          { label:'Message Queue',   status: apiUp,  icon:Zap,       detail:'BULLMQ // REDIS' },
         ].map((item,i)=>(
           <motion.div key={item.label} initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} transition={{delay:i*0.05}}
             className="monolith-card p-6 flex flex-col justify-between min-h-[140px] group transition-all duration-500 hover:border-white/20">

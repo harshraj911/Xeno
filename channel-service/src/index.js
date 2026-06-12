@@ -32,7 +32,8 @@ const logger = winston.createLogger({
 // Redis connection
 const redisConnection = new IORedis(REDIS_URL, {
   maxRetriesPerRequest: null,
-  enableReadyCheck: false
+  enableReadyCheck: false,
+  family: 0
 });
 
 // Delivery queue

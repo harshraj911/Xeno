@@ -5,7 +5,10 @@ import { logger } from './logger.js';
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
 // Standard Redis client for caching
-export const redisClient = createClient({ url: REDIS_URL });
+export const redisClient = createClient({ 
+  url: REDIS_URL,
+  socket: { family: 0 }
+});
 
 redisClient.on('error', (err) => logger.error('Redis client error:', err));
 redisClient.on('reconnecting', () => logger.warn('Redis reconnecting...'));
@@ -17,7 +20,8 @@ export async function connectRedis() {
 // IORedis connection for BullMQ
 export const redisConnection = new IORedis(REDIS_URL, {
   maxRetriesPerRequest: null,
-  enableReadyCheck: false
+  enableReadyCheck: false,
+  family: 0
 });
 
 // Cache helpers

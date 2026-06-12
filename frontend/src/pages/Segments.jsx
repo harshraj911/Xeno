@@ -252,7 +252,7 @@ export default function Segments() {
                   </p>
                   <textarea value={prompt} onChange={e=>setPrompt(e.target.value)}
                     placeholder="E.g. VIP customers who spent > 50000 but inactive for 3 months"
-                    className="w-full bg-[#030303] border border-white/10 p-4 text-sm text-white font-mono placeholder:text-zinc-700 min-h-[100px] outline-none focus:border-white/30 transition-colors"
+                    className="input min-h-[100px]"
                   />
                   <motion.button whileHover={{scale:1.02}} whileTap={{scale:0.98}}
                     onClick={doAiGen} disabled={aiLoad||!prompt.trim()} 
@@ -307,7 +307,7 @@ export default function Segments() {
                   <div className="flex items-center gap-4 bg-white/[0.02] p-4 border border-white/5">
                     <span className="text-[9px] font-black text-white uppercase tracking-widest">Logic Gate:</span>
                     <select value={form.operator} onChange={e=>setForm({...form,operator:e.target.value})} 
-                      className="bg-black border border-white/10 text-[9px] font-black uppercase tracking-widest text-white px-3 py-1.5 outline-none">
+                      className="input w-auto py-1.5 font-black uppercase tracking-widest">
                       <option value="AND">REQUIRE ALL (AND)</option>
                       <option value="OR">REQUIRE ANY (OR)</option>
                     </select>
@@ -321,18 +321,18 @@ export default function Segments() {
                         <motion.div key={i} initial={{opacity:0,x:-10}} animate={{opacity:1,x:0}}
                           className="flex items-center gap-3">
                           <select value={c.field} onChange={e=>{const nf=FIELDS.find(f=>f.value===e.target.value);updCond(i,'field',e.target.value);updCond(i,'op',getOps(nf?.type)[0].v);}}
-                            className="bg-black border border-white/10 text-xs text-white px-3 py-2 outline-none w-1/3">
+                            className="input w-1/3">
                             <option value="">Select Parameter</option>
                             {FIELDS.map(f=><option key={f.value} value={f.value}>{f.label}</option>)}
                           </select>
-                          <select value={c.op} onChange={e=>updCond(i,'op',e.target.value)} className="bg-black border border-white/10 text-xs text-white px-3 py-2 outline-none w-1/4">
+                          <select value={c.op} onChange={e=>updCond(i,'op',e.target.value)} className="input w-1/4">
                             {ops.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
                           </select>
                           {fd?.type==='select'
-                            ? <select value={c.value} onChange={e=>updCond(i,'value',e.target.value)} className="bg-[#050505] border border-white/10 text-xs text-white px-3 py-2 outline-none flex-1">
+                            ? <select value={c.value} onChange={e=>updCond(i,'value',e.target.value)} className="input flex-1">
                                 {fd.options.map(o=><option key={o} value={o}>{o}</option>)}
                               </select>
-                            : <input value={c.value} onChange={e=>updCond(i,'value',e.target.value)} placeholder="Value" className="bg-[#050505] border border-white/10 text-xs text-white px-3 py-2 outline-none flex-1 font-mono"/>
+                            : <input value={c.value} onChange={e=>updCond(i,'value',e.target.value)} placeholder="Value" className="input flex-1 font-mono"/>
                           }
                           <button onClick={()=>remCond(i)} className="w-8 h-8 flex items-center justify-center border border-white/5 text-zinc-600 hover:bg-white/10 hover:text-white transition-colors flex-shrink-0">
                             <X size={12}/>

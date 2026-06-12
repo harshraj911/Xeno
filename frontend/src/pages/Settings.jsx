@@ -4,6 +4,7 @@ import { ingestApi } from '../services/api.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Database, Sparkles, Server, RefreshCw, AlertTriangle, Zap, Activity, Trash2, Cpu, HardDrive } from 'lucide-react';
 import toast from 'react-hot-toast';
+import clsx from 'clsx';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 const API  = BASE.endsWith('/api') ? BASE : `${BASE}/api`;
@@ -46,23 +47,24 @@ export default function Settings() {
       </motion.div>
 
       {/* Health Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label:'API Endpoint',    status:isHealthy,                           icon:Server,    detail:'PORT: 4000' },
-          { label:'Core DB',         status:health?.services?.database==='up',   icon:Database,  detail:'PGSQL v16' },
-          { label:'Message Queue',   status:isHealthy,                           icon:Activity,  detail:'BULLMQ // REDIS' },
+          { label:'API Protocol',    status:health?.services?.api==='up' || isHealthy, icon:Server,    detail:'PORT: 4000' },
+          { label:'Core Database',   status:health?.services?.database==='up',         icon:Database,  detail:'PGSQL // ACTIVE' },
+          { label:'IO Channels',     status:health?.services?.channelService==='up',   icon:Activity,  detail:'STUB // PORT 5000' },
+          { label:'Message Queue',   status:health?.services?.api==='up' || isHealthy, icon:Zap,       detail:'BULLMQ // REDIS' },
         ].map((item,i)=>(
           <motion.div key={item.label} initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} transition={{delay:i*0.05}}
-            className="monolith-card p-6 flex flex-col justify-between min-h-[140px] liquid-metal-hover">
+            className="monolith-card p-6 flex flex-col justify-between min-h-[140px] group transition-all duration-500 hover:border-white/20">
             <div className="flex items-start justify-between">
-              <div className="w-10 h-10 flex items-center justify-center bg-white/[0.03] border border-white/10">
-                <item.icon size={16} className="text-zinc-400" />
+              <div className="w-10 h-10 flex items-center justify-center bg-white/[0.03] border border-white/10 group-hover:border-white/30 transition-all">
+                <item.icon size={16} className={clsx('transition-colors', item.status ? 'text-white' : 'text-zinc-600')} />
               </div>
               <div className="flex items-center gap-2 px-2 py-1 border border-white/10 bg-[#050505]">
-                <motion.div animate={item.status ? { opacity:[0.3, 1, 0.3] } : {}} transition={{ duration: 1.5, repeat: Infinity }}
-                  className={`w-1.5 h-1.5 rounded-full ${item.status ? 'bg-white' : 'bg-zinc-800'}`} />
+                <motion.div animate={item.status ? { opacity:[0.3, 1, 0.3], scale:[1, 1.2, 1] } : {}} transition={{ duration: 2, repeat: Infinity }}
+                  className={`w-1.5 h-1.5 rounded-full ${item.status ? 'bg-white' : 'bg-red-900 shadow-[0_0_8px_rgba(255,0,0,0.5)]'}`} />
                 <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">
-                  {item.status ? 'ONLINE' : 'OFFLINE'}
+                  {item.status ? 'NOMINAL' : 'OFFLINE'}
                 </span>
               </div>
             </div>

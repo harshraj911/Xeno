@@ -379,7 +379,7 @@ export default function Customers() {
                     <motion.tr key={c.id}
                       initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} transition={{delay:i*0.02, type:'spring', stiffness: 300, damping: 20}}
                       whileHover={{ y: -8, scale: 1.01, backgroundColor: 'rgba(255,255,255,0.03)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', zIndex: 10 }}
-                      className="border-b border-white/5 transition-all duration-300 cursor-crosshair group relative block sm:table-row" 
+                      className="border-b border-white/5 transition-all duration-300 cursor-crosshair group relative" 
                       onClick={()=>setSelId(c.id)}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">

@@ -150,7 +150,12 @@ export default function Campaigns() {
     if (!form.aiMessage.trim()) return;
     setAiLoading(true);
     try {
-      const r = await campaignsApi.aiMessage(form.aiMessage);
+      const segName = segs.find(s => s.id === form.segmentId)?.name || 'general audience';
+      const r = await campaignsApi.aiMessage({ 
+        intent: form.aiMessage, 
+        channel: form.channel,
+        segmentDescription: segName
+      });
       setAiSugg(r);
     } catch { toast.error('AI generation failed'); }
     finally { setAiLoading(false); }
@@ -159,7 +164,7 @@ export default function Campaigns() {
   const submit = () => {
     if (!form.name || !form.segmentId) return toast.error('Name and segment required');
     const msg = aiMode ? aiSugg?.message || form.aiMessage : form.message;
-    createMut.mutate({ name:form.name, segmentId:form.segmentId, channel:form.channel, message:msg });
+    createMut.mutate({ name:form.name, segmentId:form.segmentId, channel:form.channel, messageTemplate:msg });
   };
 
   return (

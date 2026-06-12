@@ -132,6 +132,23 @@
            placeholder:text-zinc-700 focus:border-white focus:outline-none focus:ring-0;
   }
 
+  .input {
+    @apply w-full bg-[#030303] border border-white/10 px-4 py-2.5 text-xs text-white transition-all duration-300
+           placeholder:text-zinc-700 focus:border-white/30 focus:outline-none focus:ring-0;
+  }
+
+  select.input {
+    @apply appearance-none cursor-pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.4)'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+  }
+
+  select.input option {
+    @apply bg-black text-white py-2;
+  }
+
   /* ── Table Aesthetics ────────────────────── */
   .table-container {
     @apply w-full border border-white/5 bg-black/40 backdrop-blur-md;

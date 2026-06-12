@@ -15,15 +15,21 @@ const NVIDIA_KEY  = process.env.NVIDIA_API_KEY;
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const NVIDIA_MODEL    = process.env.NVIDIA_MODEL || 'meta/llama-3.1-70b-instruct';
 
-// Groq model
-const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-70b-versatile';
+const modelPriority = [
+  process.env.GROQ_MODEL,
+  'llama3-70b-8192',
+  'llama-3.1-70b-versatile',
+  'llama-3.3-70b-versatile'
+].filter(Boolean);
+
+const GROQ_MODEL = modelPriority[0];
 
 // Which providers are actually available
 const hasGroq   = !!GROQ_KEY;
 const hasNvidia = !!NVIDIA_KEY;
 
 if (!hasGroq && !hasNvidia) {
-  logger.warn('⚠️  No AI provider configured! Set GROQ_API_KEY or NVIDIA_API_KEY in .env');
+  logger.warn('⚠️  No AI provider configured! AI features will be disabled.');
 }
 
 // Lazy-init clients so missing keys don't crash at startup

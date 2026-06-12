@@ -70,16 +70,23 @@ app.use('/api/ingest', ingestRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {
+  const services = { database: 'down', api: 'up', channelService: 'down' };
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      services: { database: 'up', api: 'up' }
-    });
-  } catch {
-    res.status(503).json({ status: 'unhealthy', database: 'down' });
-  }
+    services.database = 'up';
+  } catch (err) { /* ignore */ }
+
+  try {
+    const channelRes = await fetch(process.env.CHANNEL_SERVICE_URL || 'http://localhost:5000/health');
+    if (channelRes.ok) services.channelService = 'up';
+  } catch (err) { /* ignore */ }
+
+  const status = (services.database === 'up' && services.channelService === 'up') ? 'healthy' : 'degraded';
+  res.status(status === 'healthy' ? 200 : 207).json({
+    status,
+    timestamp: new Date().toISOString(),
+    services
+  });
 });
 
 // 404

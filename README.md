@@ -188,6 +188,44 @@ npm run dev
 
 ---
 
+## 🚀 Deployment
+
+This project is designed to be easily deployable using modern cloud platforms.
+
+### Recommended Infrastructure
+
+| Component | Platform | Why? |
+|---|---|---|
+| **Frontend (React)** | [Vercel](https://vercel.com) | Best-in-class support for Vite/React, global CDN, and automated preview deployments. |
+| **Backend & Workers** | [Render](https://render.com) | Supports persistent Node.js services, background workers (BullMQ), and managed Cron jobs. |
+| **Database (Postgres)** | [Render Postgres](https://render.com/databases) | Simple managed Postgres that integrates seamlessly with Render services. |
+| **Queue (Redis)** | [Render Redis](https://render.com/redis) | Native Redis support for BullMQ queues. |
+
+### Deployment Steps
+
+#### 1. Backend (Render)
+1. Create a new **Web Service** on Render and connect your repository.
+2. Set the `Root Directory` to `backend`.
+3. Set the `Build Command` to `npm install && npx prisma generate`.
+4. Set the `Start Command` to `npm start`.
+5. Add environment variables (see `.env.example`).
+6. Attach a **Render Postgres** and **Render Redis** instance.
+
+#### 2. Channel Service (Render)
+1. Create another **Web Service** on Render.
+2. Set the `Root Directory` to `channel-service`.
+3. Set the `Build Command` to `npm install`.
+4. Set the `Start Command` to `npm start`.
+5. Add the necessary Redis environment variables to connect to the same Redis instance used by the backend.
+
+#### 3. Frontend (Vercel)
+1. Import your repository into Vercel.
+2. Set the `Root Directory` to `frontend`.
+3. Vercel will automatically detect Vite settings.
+4. Add the `VITE_API_URL` environment variable pointing to your deployed Render backend URL.
+
+---
+
 ## 📁 Project Structure
 
 ```

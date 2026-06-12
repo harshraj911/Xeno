@@ -3,15 +3,22 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 
 # Environment variables
 .env
-.env.*
-!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+! .env.example
 
 # Build outputs
 dist/
 build/
+out/
+.next/
 
 # Vite
 .vite/
@@ -19,34 +26,56 @@ build/
 # Logs
 logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
 # IDEs
 .vscode/
 .idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
 
 # Docker
 docker-data/
 *.pid
+.docker/
 
 # Cache
 .cache/
 .parcel-cache/
+.eslintcache
+.stylelintcache
+.prettiercache
 
 # Coverage
 coverage/
+.nyc_output/
 
 # Temporary files
 tmp/
 temp/
 *.tmp
+*.bak
+*.swp
 
 # Database
 *.sqlite
 *.db
+*.db-journal
+prisma/migrations/
 
 # Runtime files
 pids/
@@ -57,13 +86,12 @@ pids/
 # Optional npm cache
 .npm
 
-# ESLint cache
-.eslintcache
-
 # Local Netlify/Vercel
 .netlify/
 .vercel/
 
-# Misc
-*.swp
-*.swo
+# Testing
+__snapshots__/
+
+# TypeScript
+*.tsbuildinfo

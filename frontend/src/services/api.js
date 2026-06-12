@@ -1,7 +1,10 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+let BASE_URL = import.meta.env.VITE_API_URL || '/api';
+if (BASE_URL && !BASE_URL.startsWith('http') && !BASE_URL.startsWith('/')) {
+  BASE_URL = `https://${BASE_URL}`;
+}
 
 const api = axios.create({
   baseURL: BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`,

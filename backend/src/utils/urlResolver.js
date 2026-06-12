@@ -3,29 +3,26 @@
  */
 
 export function resolveServiceUrl(envUrl, defaultPort, isRender = !!process.env.RENDER) {
-  if (!envUrl) return `http://localhost:${defaultPort}`;
+  // Sanitize: remove trailing slash and whitespace
+  let cleanUrl = (envUrl || '').trim();
+  if (cleanUrl.endsWith('/')) cleanUrl = cleanUrl.slice(0, -1);
+
+  if (!cleanUrl) return `http://localhost:${defaultPort}`;
   
-  // If it already has a protocol, use it as is
-  if (envUrl.startsWith('http://') || envUrl.startsWith('https://')) {
-    return envUrl;
+  // If it already has a protocol, just ensure no trailing slash
+  if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+    return cleanUrl;
   }
 
-  const isPublic = envUrl.includes('onrender.com');
+  // Handle Render internal vs public
+  const isPublic = cleanUrl.includes('.onrender.com');
   const protocol = isPublic ? 'https' : 'http';
-  const hasPath = envUrl.includes('/');
   
-  // Render internal hosts usually don't have dots (e.g. "xeno-backend")
-  // Public hosts do have dots (e.g. "xeno-backend.onrender.com")
-  const needsPort = !isPublic && !envUrl.includes(':') && !envUrl.includes('localhost');
+  // Internal Render URLs (e.g. "xeno-channel") usually need port 10000
+  const needsPort = !isPublic && !cleanUrl.includes(':') && !cleanUrl.includes('localhost');
   const port = isRender ? '10000' : defaultPort;
 
-  let url;
-  if (hasPath) {
-    url = `${protocol}://${envUrl}`;
-  } else {
-    url = `${protocol}://${envUrl}${needsPort ? `:${port}` : ''}`;
-  }
-
-  console.log(`[URL Resolver] Resolved "${envUrl}" to "${url}" (isRender: ${isRender})`);
-  return url;
+  const resolved = `${protocol}://${cleanUrl}${needsPort ? `:${port}` : ''}`;
+  console.log(`[URL Resolver] ${cleanUrl} -> ${resolved} (isRender: ${isRender})`);
+  return resolved;
 }

@@ -114,6 +114,12 @@ const campaignWorker = new Worker(
     const customers = campaign.segment.members.map((m) => m.customer);
     logger.info(`Dispatching to ${customers.length} customers for campaign ${campaignId}`);
 
+    // Update campaign total recipient count IMMEDIATELY so UI reflects it
+    await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { totalRecipients: customers.length, totalSent: 0 }
+    });
+
     // Create all communication records first
     const commsData = customers.map((customer) => {
       let channel = campaign.channel;
@@ -143,11 +149,7 @@ const campaignWorker = new Worker(
       });
     }
 
-    // Update campaign total recipient count
-    await prisma.campaign.update({
-      where: { id: campaignId },
-      data: { totalRecipients: customers.length, totalSent: 0 }
-    });
+    // totalRecipients already updated at the start of the worker
 
     // Enqueue individual send jobs
     const allComms = await prisma.communication.findMany({

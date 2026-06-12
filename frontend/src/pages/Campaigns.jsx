@@ -28,13 +28,14 @@ function CampaignCard({ c, onLaunch, onPause, idx }) {
   const nav = useNavigate();
   const ch = CH.find(x => x.id === c.channel) || CH[0];
   const sc = STATUS_CONF[c.status] || STATUS_CONF.draft;
-  const dr = c.totalSent > 0 ? ((c.totalDelivered / c.totalSent) * 100).toFixed(0) : 0;
+  const total = c.totalRecipients || c.totalSent || 0;
+  const dr = total > 0 ? ((c.totalDelivered / total) * 100).toFixed(0) : 0;
   const or = c.totalDelivered > 0 ? ((c.totalOpened / c.totalDelivered) * 100).toFixed(0) : 0;
 
   const metrics = [
+    { label: 'Audience', value: (c.totalRecipients || total).toLocaleString() },
     { label: 'Sent', value: c.totalSent?.toLocaleString() || '0' },
     { label: 'Deliv', value: `${dr}%` },
-    { label: 'Open', value: `${or}%` },
   ];
 
   return (

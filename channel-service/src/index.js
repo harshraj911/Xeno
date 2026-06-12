@@ -14,7 +14,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 let CRM_CALLBACK_URL = process.env.CRM_CALLBACK_URL || 'http://localhost:4000/api/receipts/callback';
 if (CRM_CALLBACK_URL && !CRM_CALLBACK_URL.startsWith('http')) {
-  CRM_CALLBACK_URL = `https://${CRM_CALLBACK_URL}/api/receipts/callback`;
+  // Check if it's already a full path or just a host
+  if (CRM_CALLBACK_URL.includes('/')) {
+     CRM_CALLBACK_URL = `http://${CRM_CALLBACK_URL}`;
+  } else {
+     CRM_CALLBACK_URL = `http://${CRM_CALLBACK_URL}/api/receipts/callback`;
+  }
 }
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 

@@ -19,13 +19,13 @@ const STATUS_COLORS = {
 };
 
 const METRICS = [
-  { key:'totalSent',      label:'Sent',       icon:Send,         color:'#06b6d4' },
-  { key:'totalDelivered', label:'Delivered',   icon:CheckCircle,  color:'#22c55e' },
-  { key:'totalFailed',    label:'Failed',      icon:XCircle,      color:'#ef4444' },
-  { key:'totalOpened',    label:'Opened',      icon:Eye,          color:'#a855f7' },
-  { key:'totalRead',      label:'Read',        icon:BookOpen,     color:'#f59e0b' },
-  { key:'totalClicked',   label:'Clicked',     icon:MousePointer, color:'#f97316' },
-  { key:'totalConverted', label:'Converted',   icon:ShoppingCart, color:'#10b981' },
+  { key:'totalRecipients', label:'Audience',   icon:Zap,          color:'#94a3b8' },
+  { key:'totalSent',       label:'Sent',       icon:Send,         color:'#06b6d4' },
+  { key:'totalDelivered',  label:'Delivered',   icon:CheckCircle,  color:'#22c55e' },
+  { key:'totalFailed',     label:'Failed',      icon:XCircle,      color:'#ef4444' },
+  { key:'totalOpened',     label:'Opened',      icon:Eye,          color:'#a855f7' },
+  { key:'totalClicked',    label:'Clicked',     icon:MousePointer, color:'#f97316' },
+  { key:'totalConverted',  label:'Converted',   icon:ShoppingCart, color:'#10b981' },
 ];
 
 function FunnelBar({ label, value, max, color, index }) {
@@ -89,7 +89,8 @@ export default function CampaignDetail() {
   if (!campaign) return <div className="p-6 text-slate-500 font-semibold">Campaign not found</div>;
 
   const s = stats || campaign;
-  const dr = s.totalSent>0 ? ((s.totalDelivered/s.totalSent)*100).toFixed(1) : 0;
+  const total = s.totalRecipients || s.totalSent || 0;
+  const dr = total > 0 ? ((s.totalDelivered/total)*100).toFixed(1) : 0;
   const or = s.totalDelivered>0 ? ((s.totalOpened/s.totalDelivered)*100).toFixed(1) : 0;
   const cr = s.totalOpened>0 ? ((s.totalClicked/s.totalOpened)*100).toFixed(1) : 0;
 
@@ -135,7 +136,7 @@ export default function CampaignDetail() {
           )}
           <motion.button whileHover={{scale:1.03}} whileTap={{scale:0.97}}
             onClick={()=>fetchInsights()}
-            disabled={insightsFetch || s.totalSent===0}
+            disabled={insightsFetch || total===0}
             className="btn-secondary magnetic-btn">
             {insightsFetch?<RefreshCw size={14} className="animate-spin"/>:<Sparkles size={14}/>} AI Insights
           </motion.button>
@@ -189,7 +190,7 @@ export default function CampaignDetail() {
       {/* Rate cards */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label:'Delivery Rate', value:`${dr}%`, color:'#22c55e', sub:'of sent' },
+          { label:'Delivery Rate', value:`${dr}%`, color:'#22c55e', sub:`of ${s.totalRecipients ? 'audience' : 'sent'}` },
           { label:'Open Rate',     value:`${or}%`, color:'#a855f7', sub:'of delivered' },
           { label:'Click Rate',    value:`${cr}%`, color:'#f97316', sub:'of opened' },
         ].map((r, i) => (
@@ -216,16 +217,17 @@ export default function CampaignDetail() {
             <TrendingUp size={16} className="text-violet-400"/>
             <h3 className="text-sm font-black text-white">Delivery Funnel</h3>
           </div>
-          {s.totalSent > 0 ? (
+          {total > 0 ? (
             <div className="space-y-4">
               {[
-                {label:'Sent',      value:s.totalSent,      color:'#06b6d4'},
-                {label:'Delivered', value:s.totalDelivered, color:'#22c55e'},
-                {label:'Opened',    value:s.totalOpened,    color:'#a855f7'},
-                {label:'Clicked',   value:s.totalClicked,   color:'#f97316'},
-                {label:'Converted', value:s.totalConverted, color:'#10b981'},
+                {label:'Audience',  value:s.totalRecipients||total, color:'#94a3b8'},
+                {label:'Sent',      value:s.totalSent,              color:'#06b6d4'},
+                {label:'Delivered', value:s.totalDelivered,         color:'#22c55e'},
+                {label:'Opened',    value:s.totalOpened,            color:'#a855f7'},
+                {label:'Clicked',   value:s.totalClicked,           color:'#f97316'},
+                {label:'Converted', value:s.totalConverted,         color:'#10b981'},
               ].map((item, i) => (
-                <FunnelBar key={item.label} {...item} max={s.totalSent} index={i}/>
+                <FunnelBar key={item.label} {...item} max={total} index={i}/>
               ))}
             </div>
           ) : (

@@ -11,7 +11,7 @@ export async function checkCampaignCompletion(campaignId) {
   try {
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
-      select: { status: true, totalSent: true }
+      select: { status: true, totalRecipients: true }
     });
 
     if (!campaign || (campaign.status !== 'running' && campaign.status !== 'paused')) return;
@@ -28,13 +28,13 @@ export async function checkCampaignCompletion(campaignId) {
       return acc;
     }, {});
 
-    const sentCount = statusMap.sent || 0;
     const deliveredCount = (statusMap.delivered || 0) + (statusMap.opened || 0) + (statusMap.read || 0) + (statusMap.clicked || 0) + (statusMap.converted || 0);
+    const successSentCount = (statusMap.sent || 0) + deliveredCount;
     const failedCount = statusMap.failed || 0;
-    const terminalCount = sentCount + deliveredCount + failedCount;
+    const terminalCount = (statusMap.sent || 0) + deliveredCount + failedCount;
 
-    // Use the stored totalSent (recipients count) for comparison
-    const targetCount = campaign.totalSent || 0;
+    // Use the stored totalRecipients for comparison
+    const targetCount = campaign.totalRecipients || 0;
 
     if (targetCount > 0 && terminalCount >= targetCount) {
       await prisma.campaign.update({
@@ -44,17 +44,18 @@ export async function checkCampaignCompletion(campaignId) {
           completedAt: new Date(),
           totalFailed: failedCount,
           totalDelivered: deliveredCount,
-          totalSent: targetCount // Ensure this remains consistent
+          totalSent: successSentCount
         }
       });
-      logger.info(`✅ Campaign ${campaignId} completed: ${terminalCount}/${targetCount} handled (${failedCount} errors)`);
+      logger.info(`✅ Campaign ${campaignId} completed: ${terminalCount}/${targetCount} handled (Success: ${successSentCount}, Fail: ${failedCount})`);
     } else {
       // Periodic update of counters even if not complete
       await prisma.campaign.update({
         where: { id: campaignId },
         data: {
           totalFailed: failedCount,
-          totalDelivered: deliveredCount
+          totalDelivered: deliveredCount,
+          totalSent: successSentCount
         }
       });
     }
@@ -63,7 +64,10 @@ export async function checkCampaignCompletion(campaignId) {
   }
 }
 
-const CHANNEL_SERVICE_URL = process.env.CHANNEL_SERVICE_URL || 'http://localhost:5000';
+let CHANNEL_SERVICE_URL = process.env.CHANNEL_SERVICE_URL || 'http://localhost:5000';
+if (CHANNEL_SERVICE_URL && !CHANNEL_SERVICE_URL.startsWith('http')) {
+  CHANNEL_SERVICE_URL = `http://${CHANNEL_SERVICE_URL}`;
+}
 
 // Queue definitions
 export const campaignQueue = new Queue('campaign-dispatch', {
@@ -143,7 +147,7 @@ const campaignWorker = new Worker(
     // Update campaign total recipient count
     await prisma.campaign.update({
       where: { id: campaignId },
-      data: { totalSent: customers.length }
+      data: { totalRecipients: customers.length, totalSent: 0 }
     });
 
     // Enqueue individual send jobs

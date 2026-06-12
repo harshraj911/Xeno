@@ -85,7 +85,7 @@ async function getHealthStatus() {
   try {
     let channelUrl = process.env.CHANNEL_SERVICE_URL || 'http://localhost:5000';
     if (channelUrl && !channelUrl.startsWith('http')) {
-      channelUrl = `https://${channelUrl}`;
+      channelUrl = `http://${channelUrl}`;
     }
     const channelRes = await fetch(`${channelUrl}/health`);
     if (channelRes.ok) services.channelService = 'up';

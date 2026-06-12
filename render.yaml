@@ -1,4 +1,10 @@
 services:
+  # Xeno Redis (Now as a KeyValue service)
+  - type: redis
+    name: xeno-redis
+    plan: free
+    ipAllowList: [] # Only allow internal connections
+
   # Xeno Backend
   - type: web
     name: xeno-backend
@@ -41,7 +47,7 @@ services:
     env: static
     plan: free
     buildCommand: npm install && npm run build
-    staticPublishDir: dist
+    publishDir: dist
     rootDir: frontend
     envVars:
       - key: VITE_API_URL
@@ -54,8 +60,3 @@ databases:
   - name: xeno-db
     plan: free
     databaseName: xenocrm
-
-redis:
-  - name: xeno-redis
-    plan: free
-    ipAllowList: [] # Only allow internal connections

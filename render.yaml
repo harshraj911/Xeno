@@ -1,5 +1,5 @@
 services:
-  # Xeno Redis (Now as a KeyValue service)
+  # Xeno Redis
   - type: redis
     name: xeno-redis
     plan: free
@@ -41,13 +41,13 @@ services:
           name: xeno-redis
           property: connectionString
 
-  # Xeno Frontend
+  # Xeno Frontend (Static Site)
   - type: web
     name: xeno-frontend
-    env: static
+    runtime: static
     plan: free
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: dist
     rootDir: frontend
     envVars:
       - key: VITE_API_URL

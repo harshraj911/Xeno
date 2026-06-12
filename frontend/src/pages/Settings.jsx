@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ingestApi } from '../services/api.js';
+import { ingestApi, BASE_URL } from '../services/api.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Database, Sparkles, Server, RefreshCw, AlertTriangle, Zap, Activity, Trash2, Cpu, HardDrive } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
-const BASE = import.meta.env.VITE_API_URL || '';
-const API  = BASE.endsWith('/api') ? BASE : `${BASE}/api`;
+const API = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
 
 export default function Settings() {
   const [seeding, setSeeding] = useState(false);

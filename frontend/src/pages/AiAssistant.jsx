@@ -1,13 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { analyticsApi, segmentsApi, campaignsApi } from '../services/api.js';
+import { analyticsApi, segmentsApi, campaignsApi, BASE_URL } from '../services/api.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Bot, User, RefreshCw, Zap, Terminal, Check, Info, AlertCircle, Trash2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 
-const BASE = import.meta.env.VITE_API_URL || '';
-const API  = BASE.endsWith('/api') ? BASE : `${BASE}/api`;
+const API = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
 
 const SUGGESTIONS = [
   { text: "Find high-value customers who haven't ordered in 60+ days", tag: 'SEG' },

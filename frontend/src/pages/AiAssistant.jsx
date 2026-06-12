@@ -139,15 +139,21 @@ export default function AiAssistant() {
   useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
 
   const executeCommand = async (fullText) => {
-    // Look for any code block with json or just triple backticks
-    const jsonMatch = fullText.match(/```(?:json)?\n?([\s\S]*?)```/);
+    // Look for any code block with json or just triple backticks, handle whitespace
+    const jsonMatch = fullText.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (!jsonMatch) return;
 
     try {
       const cleanJson = jsonMatch[1].trim();
-      const { command, payload } = JSON.parse(cleanJson);
-      let result = null;
+      const payloadObj = JSON.parse(cleanJson);
+      const { command, payload } = payloadObj;
+      
+      // Prevent duplicate execution
+      const lastMsg = msgs[msgs.length - 1];
+      if (lastMsg?.executed) return;
+      setMsgs(p => p.map(m => m.id === lastMsg?.id ? { ...m, executed: true } : m));
 
+      let result = null;
       switch (command) {
         case 'CREATE_SEGMENT':
           result = await segmentsApi.create(payload);
@@ -157,11 +163,13 @@ export default function AiAssistant() {
           setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Created segment: ${payload.name}` }]);
           break;
         case 'DELETE_SEGMENT':
-          await segmentsApi.delete(payload.segmentId);
+          const segId = payload.segmentId || payload.id;
+          if (!segId) throw new Error('Missing segment ID');
+          await segmentsApi.delete(segId);
           qc.invalidateQueries(['segments']);
           qc.invalidateQueries(['dashboard']);
           toast.success(`Segment deleted via AI`);
-          setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Deleted segment ID: ${payload.segmentId}` }]);
+          setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Deleted segment ID: ${segId}` }]);
           break;
         case 'CREATE_CAMPAIGN':
           result = await campaignsApi.create(payload);
@@ -171,11 +179,13 @@ export default function AiAssistant() {
           setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Drafted campaign: ${payload.name}` }]);
           break;
         case 'DELETE_CAMPAIGN':
-          await campaignsApi.delete(payload.campaignId);
+          const cmpId = payload.campaignId || payload.id;
+          if (!cmpId) throw new Error('Missing campaign ID');
+          await campaignsApi.delete(cmpId);
           qc.invalidateQueries(['campaigns']);
           qc.invalidateQueries(['dashboard']);
           toast.success(`Campaign deleted via AI`);
-          setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Deleted campaign ID: ${payload.campaignId}` }]);
+          setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Deleted campaign ID: ${cmpId}` }]);
           break;
         default:
           console.warn('Unknown AI command:', command);
@@ -203,6 +213,7 @@ export default function AiAssistant() {
       }));
     history.push({ role: 'user', content: text });
 
+    let full = '';
     try {
       const resp = await fetch(`${API}/ai/chat`, {
         method: 'POST',
@@ -212,7 +223,6 @@ export default function AiAssistant() {
       if (!resp.ok) throw new Error('AI unavailable');
       const reader  = resp.body.getReader();
       const decoder = new TextDecoder();
-      let full = '';
       let buffer = '';
       setThink(false);
 
@@ -222,7 +232,6 @@ export default function AiAssistant() {
 
         buffer += decoder.decode(value, { stream: true });
         
-        // Robust SSE line splitting and multi-block handling
         let lineEnd;
         while ((lineEnd = buffer.indexOf('\n')) !== -1) {
           const line = buffer.slice(0, lineEnd).trim();
@@ -230,7 +239,6 @@ export default function AiAssistant() {
           
           if (!line || !line.startsWith('data: ')) continue;
           
-          // In case multiple data: blocks are on one line (rare but possible in some proxies)
           const dataBlocks = line.split('data: ').filter(Boolean);
           for (const block of dataBlocks) {
             try {
@@ -241,7 +249,6 @@ export default function AiAssistant() {
               }
               if (d.done) { 
                 setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: full || 'Done.' } : m));
-                executeCommand(full);
               }
               if (d.error) { 
                 setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: `ERROR: ${d.error}` } : m)); 
@@ -252,13 +259,16 @@ export default function AiAssistant() {
           }
         }
       }
-      
-      // Handle completion if stream ends without 'done' event
-      setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: full || (full === '' ? 'AI failed to generate a response. Please try again.' : full) } : m));
     } catch (e) {
       setThink(false);
       setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: 'ERROR: AI subsystem unavailable. Check your API key configuration.' } : m));
-    } finally { setLoad(false); inputRef.current?.focus(); }
+    } finally { 
+      setLoad(false); 
+      setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: full || (full === '' ? 'Done.' : full) } : m));
+      // Always try to execute command at the end
+      if (full) executeCommand(full);
+      inputRef.current?.focus(); 
+    }
   };
 
   const clearChat = () => {

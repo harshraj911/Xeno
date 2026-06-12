@@ -143,7 +143,11 @@ EXAMPLE COMMAND:
 \`\`\`
 
 Always use the IDs provided in the context above for deletions or campaign targeting. Be extremely concise in your verbal response.
-IMPORTANT: Only output a JSON command block when a new action is explicitly requested. NEVER repeat or re-output a previous command block in subsequent messages. Once a command is issued, it is considered executed.`;
+IMPORTANT:
+1. Only output a JSON command block when a new action is explicitly requested. 
+2. ALWAYS place the JSON code block at the VERY END of your response.
+3. Ensure the JSON is valid and matches the schemas above exactly.
+4. Use the specific field names (e.g., campaignId, segmentId) provided in the SCHEMA.`;
 
   return await streamComplete([{ role: 'system', content: sys }, ...messages], { temperature: 0.6 });
 }

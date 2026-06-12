@@ -31,7 +31,7 @@ services:
           name: xeno-channel-service
           property: host
 
-  # Xeno Channel Stub Service (Now as a Web Service for Free Plan support)
+  # Xeno Channel Stub Service
   - type: web
     name: xeno-channel-service
     env: node
@@ -50,7 +50,6 @@ services:
           type: web
           name: xeno-backend
           property: host
-        generateValue: "${value}/api/receipts/callback"
 
   # Xeno Frontend (Static Site)
   - type: web

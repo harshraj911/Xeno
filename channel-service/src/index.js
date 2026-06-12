@@ -12,7 +12,10 @@ import winston from 'winston';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const CRM_CALLBACK_URL = process.env.CRM_CALLBACK_URL || 'http://localhost:4000/api/receipts/callback';
+let CRM_CALLBACK_URL = process.env.CRM_CALLBACK_URL || 'http://localhost:4000/api/receipts/callback';
+if (CRM_CALLBACK_URL && !CRM_CALLBACK_URL.startsWith('http')) {
+  CRM_CALLBACK_URL = `https://${CRM_CALLBACK_URL}/api/receipts/callback`;
+}
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
 // Logger

@@ -83,7 +83,10 @@ app.get('/health', async (req, res) => {
   } catch (err) { /* ignore */ }
 
   try {
-    const channelUrl = process.env.CHANNEL_SERVICE_URL || 'http://localhost:5000';
+    let channelUrl = process.env.CHANNEL_SERVICE_URL || 'http://localhost:5000';
+    if (channelUrl && !channelUrl.startsWith('http')) {
+      channelUrl = `https://${channelUrl}`;
+    }
     const channelRes = await fetch(`${channelUrl}/health`);
     if (channelRes.ok) services.channelService = 'up';
   } catch (err) { /* ignore */ }

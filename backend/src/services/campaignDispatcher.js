@@ -64,16 +64,9 @@ export async function checkCampaignCompletion(campaignId) {
   }
 }
 
-let CHANNEL_SERVICE_URL = process.env.CHANNEL_SERVICE_URL || 'http://localhost:5000';
-if (CHANNEL_SERVICE_URL && !CHANNEL_SERVICE_URL.startsWith('http')) {
-  const isPublic = CHANNEL_SERVICE_URL.includes('onrender.com');
-  const protocol = isPublic ? 'https' : 'http';
-  // Render internal discovery requires the port. Default to 10000 if on Render, else 5000.
-  const isRender = !!process.env.RENDER;
-  const defaultPort = isRender ? '10000' : '5000';
-  const needsPort = !isPublic && !CHANNEL_SERVICE_URL.includes(':') && !CHANNEL_SERVICE_URL.includes('localhost');
-  CHANNEL_SERVICE_URL = `${protocol}://${CHANNEL_SERVICE_URL}${needsPort ? `:${defaultPort}` : ''}`;
-}
+import { resolveServiceUrl } from '../utils/urlResolver.js';
+
+let CHANNEL_SERVICE_URL = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5000');
 
 // Queue definitions
 export const campaignQueue = new Queue('campaign-dispatch', {
@@ -211,7 +204,10 @@ const messageWorker = new Worker(
         },
         channel,
         message
-      }, { timeout: 10000 });
+      }, { 
+        timeout: 10000,
+        headers: { 'X-Xeno-Attempt': job.attemptsMade + 1 }
+      });
 
       await prisma.communication.update({
         where: { id: communicationId },
@@ -222,29 +218,27 @@ const messageWorker = new Worker(
         }
       });
 
-      // Check if campaign is now complete
       await checkCampaignCompletion(campaignId);
 
     } catch (err) {
-      const isFinalAttempt = job.attemptsMade >= (job.opts.attempts || 3) - 1;
+      const errorMsg = err.response
+        ? `Channel Service Error (${err.response.status}): ${JSON.stringify(err.response.data)}`
+        : `Network Error: ${err.message}`;
       
-      logger.error(`Failed to send message ${communicationId} (attempt ${job.attemptsMade + 1}):`, err.message);
+      logger.error(`Failed to dispatch message ${communicationId}: ${errorMsg}`);
       
       await prisma.communication.update({
         where: { id: communicationId },
         data: {
           status: 'failed',
-          failureReason: err.message,
+          failureReason: errorMsg,
           failedAt: new Date(),
           retryCount: { increment: 1 }
         }
       });
 
-      // We DON'T manually increment totalFailed here anymore. 
-      // checkCampaignCompletion will recalculate it accurately.
       await checkCampaignCompletion(campaignId);
-
-      throw err; // Let BullMQ handle retry
+      throw err;
     }
   },
   { connection: redisConnection, concurrency: 20 }

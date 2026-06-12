@@ -83,10 +83,8 @@ async function getHealthStatus() {
   } catch (err) { /* ignore */ }
 
   try {
-    let channelUrl = process.env.CHANNEL_SERVICE_URL || 'http://localhost:5000';
-    if (channelUrl && !channelUrl.startsWith('http')) {
-      channelUrl = `http://${channelUrl}`;
-    }
+    const { resolveServiceUrl } = await import('./utils/urlResolver.js');
+    const channelUrl = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5000');
     const channelRes = await fetch(`${channelUrl}/health`);
     if (channelRes.ok) services.channelService = 'up';
   } catch (err) { /* ignore */ }

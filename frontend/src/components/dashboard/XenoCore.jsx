@@ -10,83 +10,65 @@ function CoreSphere({ revenue, customers }) {
   const ring2Ref = useRef();
 
   useFrame((state) => {
-    const t = state.clock.getElapsedTime();
+    const t = state.clock.elapsedTime; // Avoid .getElapsedTime() warning
     if (meshRef.current) {
       meshRef.current.rotation.y = t * 0.15;
-      meshRef.current.rotation.x = Math.sin(t * 0.3) * 0.1;
     }
     if (glowRef.current) {
-      glowRef.current.scale.setScalar(1 + Math.sin(t * 1.5) * 0.08);
-      glowRef.current.material.opacity = 0.15 + Math.sin(t * 2) * 0.05;
+      const s = 1 + Math.sin(t * 1.5) * 0.05;
+      glowRef.current.scale.set(s, s, s);
     }
     if (ring1Ref.current) {
       ring1Ref.current.rotation.z = t * 0.4;
-      ring1Ref.current.rotation.x = Math.PI / 3 + Math.sin(t * 0.2) * 0.1;
-    }
-    if (ring2Ref.current) {
-      ring2Ref.current.rotation.z = -t * 0.3;
-      ring2Ref.current.rotation.x = -Math.PI / 4 + Math.cos(t * 0.15) * 0.1;
     }
   });
 
   return (
     <group>
-      {/* outer glow halo */}
       <mesh ref={glowRef}>
-        <sphereGeometry args={[1.5, 32, 32]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.05} side={THREE.BackSide} />
+        <sphereGeometry args={[1.5, 16, 16]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.03} side={THREE.BackSide} />
       </mesh>
 
-      {/* main distorted core */}
-      <Float speed={2} rotationIntensity={0.3} floatIntensity={0.3}>
-        <Sphere ref={meshRef} args={[1, 64, 64]}>
-          <MeshDistortMaterial
-            color="#000000"
-            emissive="#ffffff"
-            emissiveIntensity={0.2}
-            metalness={1}
-            roughness={0}
-            distort={0.4}
-            speed={2}
-          />
-        </Sphere>
-      </Float>
+      <Sphere ref={meshRef} args={[1, 32, 32]}>
+        <MeshDistortMaterial
+          color="#000000"
+          emissive="#ffffff"
+          emissiveIntensity={0.2}
+          metalness={1}
+          roughness={0}
+          distort={0.3}
+          speed={1.5}
+        />
+      </Sphere>
 
-      {/* inner bright core */}
       <mesh>
-        <sphereGeometry args={[0.6, 32, 32]} />
+        <sphereGeometry args={[0.5, 16, 16]} />
         <meshStandardMaterial
           color="#ffffff"
           emissive="#ffffff"
-          emissiveIntensity={1.5}
+          emissiveIntensity={1.2}
           transparent
-          opacity={0.8}
+          opacity={0.6}
         />
       </mesh>
 
-      {/* orbiting rings */}
       <mesh ref={ring1Ref} rotation={[Math.PI / 3, 0, 0]}>
-        <torusGeometry args={[1.7, 0.01, 16, 100]} />
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1} transparent opacity={0.4} />
+        <torusGeometry args={[1.7, 0.005, 8, 64]} />
+        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} transparent opacity={0.3} />
       </mesh>
 
-      <mesh ref={ring2Ref} rotation={[-Math.PI / 4, 0, 0]}>
-        <torusGeometry args={[2.0, 0.005, 16, 100]} />
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} transparent opacity={0.2} />
-      </mesh>
-
-      {/* clean point lights */}
-      <pointLight color="#ffffff" intensity={2} distance={10} />
+      <pointLight color="#ffffff" intensity={1.5} distance={8} />
     </group>
   );
 }
 
 function ParticleField() {
-  const count = 200;
+  const count = 50; // Drastically reduced
   const positions = useMemo(() => {
     const arr = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      const r = 2 + Math.random() * 5;
+      const r = 2 + Math.random() * 4;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.random() * Math.PI;
       arr[i * 3] = r * Math.sin(phi) * Math.cos(theta);
@@ -99,7 +81,7 @@ function ParticleField() {
   const pointsRef = useRef();
   useFrame((state) => {
     if (pointsRef.current) {
-      pointsRef.current.rotation.y = state.clock.getElapsedTime() * 0.03;
+      pointsRef.current.rotation.y = state.clock.elapsedTime * 0.02;
     }
   });
 
@@ -108,7 +90,7 @@ function ParticleField() {
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial color="#ffffff" size={0.03} transparent opacity={0.4} sizeAttenuation />
+      <pointsMaterial color="#ffffff" size={0.02} transparent opacity={0.3} sizeAttenuation />
     </points>
   );
 }
@@ -119,22 +101,19 @@ export default function XenoCore({ revenue = 0, customers = 0 }) {
       <Canvas
         camera={{ position: [0, 0, 5], fov: 50 }}
         style={{ background: 'transparent' }}
-        dpr={1} // Cap DPR to 1 to save GPU memory
+        dpr={1}
         powerPreference="high-performance"
         gl={{ 
-          antialias: false, // Turn off for performance
+          antialias: false,
           alpha: true, 
           stencil: false,
           depth: true,
           powerPreference: 'high-performance',
-          failIfMajorPerformanceCaveat: false
+          failIfMajorPerformanceCaveat: false,
+          preserveDrawingBuffer: false
         }}
         onCreated={({ gl }) => {
           gl.setClearColor(0x000000, 0);
-          gl.domElement.addEventListener('webglcontextlost', (e) => {
-            e.preventDefault();
-            console.warn('XenoCore: WebGL context lost.');
-          }, false);
         }}
       >
         <ambientLight intensity={0.1} />

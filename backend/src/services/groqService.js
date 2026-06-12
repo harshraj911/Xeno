@@ -54,7 +54,7 @@ async function callWithFallback(groqFn, nvidiaFn) {
 }
 
 async function complete(messages, options = {}) {
-  const params = { messages, temperature: options.temperature ?? 0.7, max_tokens: options.maxTokens ?? 1024 };
+  const params = { messages, temperature: options.temperature ?? 0.7, max_tokens: options.maxTokens ?? 2048 };
   return await callWithFallback(
     async (c, m) => (await c.chat.completions.create({ model: m, ...params })).choices[0]?.message?.content || '',
     async (c, m) => (await c.chat.completions.create({ model: m, ...params })).choices[0]?.message?.content || ''
@@ -62,7 +62,7 @@ async function complete(messages, options = {}) {
 }
 
 export async function streamComplete(messages, options = {}) {
-  const params = { messages, stream: true, temperature: options.temperature ?? 0.7, max_tokens: options.maxTokens ?? 1024 };
+  const params = { messages, stream: true, temperature: options.temperature ?? 0.7, max_tokens: options.maxTokens ?? 2048 };
   if (hasGroq) {
     try { return await getGroq().chat.completions.create({ model: GROQ_MODEL, ...params }); } 
     catch (err) { logger.warn('Groq stream error, falling back...'); }

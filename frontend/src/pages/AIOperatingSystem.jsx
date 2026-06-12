@@ -13,59 +13,8 @@ import { format } from 'date-fns';
 import XenoCore from '../components/dashboard/XenoCore.jsx';
 import HolographicModule from '../components/dashboard/HolographicModule.jsx';
 import { RevenueWave, EngagementRings, ChannelBars } from '../components/dashboard/Visualizations.jsx';
+import NetworkBackground from '../components/NetworkBackground.jsx';
 
-/* ─── Neural Dot Canvas ─────────────────────────────── */
-function NeuralBackground() {
-  const canvasRef = useRef(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let animId;
-    let nodes = [];
-    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
-    resize();
-    window.addEventListener('resize', resize);
-    for (let i = 0; i < 35; i++) {
-      nodes.push({
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight,
-        vx: (Math.random() - 0.5) * 0.25,
-        vy: (Math.random() - 0.5) * 0.25,
-        r: Math.random() * 1 + 0.5,
-      });
-    }
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      nodes.forEach(n => {
-        n.x += n.vx; n.y += n.vy;
-        if (n.x < 0 || n.x > canvas.width) n.vx *= -1;
-        if (n.y < 0 || n.y > canvas.height) n.vy *= -1;
-      });
-      nodes.forEach((a, i) => {
-        nodes.slice(i + 1).forEach(b => {
-          const dist = Math.hypot(a.x - b.x, a.y - b.y);
-          if (dist < 160) {
-            const op = (1 - dist / 160) * 0.06;
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-            ctx.strokeStyle = `rgba(255,255,255,${op})`;
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
-        });
-        ctx.beginPath();
-        ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,0.15)`;
-        ctx.fill();
-      });
-      animId = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
-  }, []);
-  return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-0" style={{ opacity: 0.5 }} />;
-}
 
 /* ─── Status Bar ────────────────────────────────────── */
 function StatusBar({ hasData, lastUpdated, onRefetch, isLoading }) {
@@ -279,7 +228,7 @@ export default function AIOperatingSystem() {
 
   return (
     <div className="relative min-h-screen max-w-[1440px]">
-      <NeuralBackground />
+      <NetworkBackground activeNodes={40} opacity={0.2} />
 
       <div className="relative z-10">
         <StatusBar hasData={hasData} lastUpdated={lastUpdated} onRefetch={refetch} isLoading={isLoading} />

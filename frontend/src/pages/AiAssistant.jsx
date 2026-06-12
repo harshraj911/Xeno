@@ -208,22 +208,42 @@ export default function AiAssistant() {
       const reader  = resp.body.getReader();
       const decoder = new TextDecoder();
       let full = '';
+      let buffer = '';
       setThink(false);
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        for (const line of decoder.decode(value).split('\n').filter(l => l.startsWith('data: '))) {
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep the incomplete last line in the buffer
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+          
           try {
-            const d = JSON.parse(line.slice(6));
-            if (d.delta) { full += d.delta; setMsgs(p => p.map(m => m.id === aid ? { ...m, content: full } : m)); }
+            const d = JSON.parse(trimmed.slice(6));
+            if (d.delta) { 
+              full += d.delta; 
+              setMsgs(p => p.map(m => m.id === aid ? { ...m, content: full } : m)); 
+            }
             if (d.done) { 
-              setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: full } : m));
+              setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: full || 'Done.' } : m));
               executeCommand(full);
             }
-            if (d.error) { setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: `ERROR: ${d.error}` } : m)); }
-          } catch {}
+            if (d.error) { 
+              setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: `ERROR: ${d.error}` } : m)); 
+            }
+          } catch (e) {
+            console.error('SSE Parse Error:', e, trimmed);
+          }
         }
       }
+      
+      // Handle completion if stream ends without 'done' event
+      setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: full || (full === '' ? 'AI failed to generate a response. Please try again.' : full) } : m));
     } catch (e) {
       setThink(false);
       setMsgs(p => p.map(m => m.id === aid ? { ...m, streaming: false, content: 'ERROR: AI subsystem unavailable. Check your API key configuration.' } : m));

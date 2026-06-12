@@ -49,9 +49,10 @@ app.use(morgan('combined', {
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
-  max: 1000, // Increased
+  max: 10000, // High enough for callbacks
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.headers['x-channel-service'] === 'xeno-stub/1.0',
   message: { error: 'Too many requests, please try again later.' }
 });
 app.use('/api', limiter);
@@ -82,7 +83,8 @@ app.get('/health', async (req, res) => {
   } catch (err) { /* ignore */ }
 
   try {
-    const channelRes = await fetch(process.env.CHANNEL_SERVICE_URL || 'http://localhost:5000/health');
+    const channelUrl = process.env.CHANNEL_SERVICE_URL || 'http://localhost:5000';
+    const channelRes = await fetch(`${channelUrl}/health`);
     if (channelRes.ok) services.channelService = 'up';
   } catch (err) { /* ignore */ }
 

@@ -7,6 +7,7 @@ import {
   ChevronRight, Activity
 } from 'lucide-react';
 import clsx from 'clsx';
+import NetworkBackground from './NetworkBackground.jsx';
 
 const NAV = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -128,9 +129,10 @@ export default function Layout() {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-black">
+    <div className="flex h-screen overflow-hidden bg-black text-white">
       <MouseSpotlight />
       <AmbientBackground />
+      <NetworkBackground activeNodes={60} opacity={0.3} />
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
 
       {/* ── Floating Sidebar ─────────────────── */}

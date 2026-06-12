@@ -6,6 +6,7 @@ import { Plus, Sparkles, Users, Tag, RefreshCw, Trash2, Wand2, X, Check, Brain, 
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import NetworkBackground from '../components/NetworkBackground.jsx';
 
 const FIELDS = [
   { value:'totalSpend',    label:'Total Spend (₹)',        type:'number' },
@@ -22,76 +23,6 @@ const DAYS_OPS   = [{v:'daysAgo_lte',l:'within last X days'},{v:'daysAgo_gte',l:
 const STR_OPS    = [{v:'eq',l:'equals'},{v:'contains',l:'contains'},{v:'not_contains',l:'not contains'}];
 const getOps = t => t==='number'?NUM_OPS : t==='days'?DAYS_OPS : STR_OPS;
 
-/* ── Neural Network Visualization ───────────────────────────── */
-function NetworkViz({ activeNodes = 0 }) {
-  const canvasRef = useRef(null);
-  
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let animId;
-    let nodes = [];
-    const numNodes = activeNodes === 0 ? 50 : Math.min(activeNodes * 10, 80);
-    
-    const resize = () => {
-      const parent = canvas.parentElement;
-      canvas.width = parent.clientWidth;
-      canvas.height = parent.clientHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-    
-    for (let i = 0; i < numNodes; i++) {
-      nodes.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
-        r: Math.random() * 2 + 1,
-      });
-    }
-    
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      nodes.forEach(n => {
-        n.x += n.vx; n.y += n.vy;
-        if (n.x < 0 || n.x > canvas.width) n.vx *= -1;
-        if (n.y < 0 || n.y > canvas.height) n.vy *= -1;
-      });
-      
-      nodes.forEach((a, i) => {
-        nodes.slice(i + 1).forEach(b => {
-          const dist = Math.hypot(a.x - b.x, a.y - b.y);
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-            ctx.strokeStyle = `rgba(255,255,255,${(1 - dist / 120) * 0.15})`;
-            ctx.lineWidth = activeNodes === 0 ? 0.5 : 1;
-            ctx.stroke();
-          }
-        });
-        ctx.beginPath();
-        ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,0.4)`;
-        ctx.fill();
-        
-        if (Math.random() > 0.99) {
-          ctx.beginPath();
-          ctx.arc(a.x, a.y, a.r * 3, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255,255,255,0.1)`;
-          ctx.fill();
-        }
-      });
-      animId = requestAnimationFrame(draw);
-    };
-    draw();
-    
-    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
-  }, [activeNodes]);
-
-  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-0" />;
-}
 
 /* ── Segment Floating Node ────────────────────────────────── */
 function SegCard({ seg, onRefresh, onDelete, idx }) {
@@ -205,7 +136,7 @@ export default function Segments() {
   return (
     <div className="space-y-6 max-w-[1400px] relative min-h-full">
       {/* Network Background for active segments */}
-      {segs.length > 0 && !show && <NetworkViz activeNodes={segs.length} />}
+      {segs.length > 0 && !show && <NetworkBackground activeNodes={segs.length * 5} opacity={0.4} />}
 
       <motion.div initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}} className="flex items-end justify-between relative z-10">
         <div>
@@ -373,7 +304,7 @@ export default function Segments() {
         {segs.length===0 && !show ? (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} 
             className="border border-white/5 bg-[#050505]/80 backdrop-blur-xl p-24 text-center relative overflow-hidden h-[60vh] flex flex-col justify-center items-center">
-            <NetworkViz activeNodes={0} />
+            <NetworkBackground activeNodes={50} opacity={0.2} />
             <div className="relative z-10 text-center">
               <motion.div animate={{scale:[0.9, 1.1, 0.9], opacity:[0.5, 1, 0.5]}} transition={{duration:4,repeat:Infinity}}>
                 <div className="w-16 h-16 flex items-center justify-center border border-white/10 bg-white/[0.02] mx-auto mb-6 rotate-45">

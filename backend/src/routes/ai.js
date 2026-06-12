@@ -37,11 +37,21 @@ router.post('/chat', async (req, res) => {
         take: 10
       }),
       prisma.campaign.findMany({
-        select: { id: true, name: true, status: true },
+        select: { id: true, name: true, status: true, totalSent: true, totalDelivered: true },
         orderBy: { createdAt: 'desc' },
         take: 10
       })
     ]);
+
+    const campaignsWithStats = await Promise.all(recentCampaigns.map(async (c) => {
+      const stats = await prisma.communication.groupBy({
+        by: ['channel'],
+        where: { campaignId: c.id },
+        _count: { id: true }
+      });
+      const channelBreakdown = stats.map(s => `${s.channel}: ${s._count.id}`).join(', ');
+      return `${c.name} [${c.status}] (${c.totalSent} sent, ${c.totalDelivered} delivered. Breakdown: ${channelBreakdown || 'None'}) (ID: ${c.id})`;
+    }));
 
     const context = {
       totalCustomers: customerCount,
@@ -49,7 +59,7 @@ router.post('/chat', async (req, res) => {
       activeSegments: segmentCount,
       monthlyRevenue: revenue._sum.amount || 0,
       segments: segments.map(s => `${s.name} (ID: ${s.id})`).join(', '),
-      campaigns: recentCampaigns.map(c => `${c.name} [${c.status}] (ID: ${c.id})`).join(', ')
+      campaigns: campaignsWithStats.join(' | ')
     };
 
     // Set up SSE

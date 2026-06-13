@@ -136,6 +136,7 @@ SCHEMA DEFINITIONS:
 - DELETE_SEGMENT: { segmentId: string }
 - CREATE_CAMPAIGN: { name: string, segmentId: string, channel: 'whatsapp'|'sms'|'email', messageTemplate: string }
 - DELETE_CAMPAIGN: { campaignId: string }
+- DELETE_ALL_CAMPAIGNS: {}
 
 EXAMPLE COMMAND:
 \`\`\`json

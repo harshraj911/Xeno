@@ -275,6 +275,20 @@ router.get('/:id/insights', async (req, res) => {
 });
 
 
+// DELETE /api/campaigns - delete all campaigns
+router.delete('/', async (req, res) => {
+  try {
+    // Delete all communications first to ensure clean cascade if needed
+    // (Prisma cascade delete handles this but doing it explicitly guarantees no orphans)
+    await prisma.communication.deleteMany();
+    await prisma.campaign.deleteMany();
+    await cache.del('analytics:dashboard');
+    res.json({ success: true, message: 'All campaigns deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/campaigns/:id
 router.delete('/:id', async (req, res) => {
   try {

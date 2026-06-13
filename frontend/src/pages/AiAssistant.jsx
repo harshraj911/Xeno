@@ -139,57 +139,89 @@ export default function AiAssistant() {
   useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
 
   const executeCommand = async (fullText) => {
-    // Look for any code block with json or just triple backticks, handle whitespace
-    const jsonMatch = fullText.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (!jsonMatch) return;
+    // 1. Extract content between triple backticks
+    const blockMatch = fullText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (!blockMatch) return;
 
     try {
-      const cleanJson = jsonMatch[1].trim();
-      const payloadObj = JSON.parse(cleanJson);
-      const { command, payload } = payloadObj;
+      const rawContent = blockMatch[1].trim();
       
+      let payloadObj;
+      try {
+        payloadObj = JSON.parse(rawContent);
+      } catch (e) {
+        // Fallback robust json extraction
+        const match = rawContent.match(/[{[]/);
+        if (!match) return;
+        const lastChar = match[0] === '{' ? '}' : ']';
+        const startIdx = rawContent.indexOf(match[0]);
+        const endIdx = rawContent.lastIndexOf(lastChar);
+        if (startIdx === -1 || endIdx === -1) return;
+        payloadObj = JSON.parse(rawContent.slice(startIdx, endIdx + 1));
+      }
+      
+      const commandsArray = Array.isArray(payloadObj) ? payloadObj : [payloadObj];
+
       // Prevent duplicate execution
       const lastMsg = msgs[msgs.length - 1];
       if (lastMsg?.executed) return;
       setMsgs(p => p.map(m => m.id === lastMsg?.id ? { ...m, executed: true } : m));
 
-      let result = null;
-      switch (command) {
-        case 'CREATE_SEGMENT':
-          result = await segmentsApi.create(payload);
-          qc.invalidateQueries(['segments']);
-          qc.invalidateQueries(['dashboard']);
-          toast.success(`Segment "${payload.name}" created via AI`);
-          setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Created segment: ${payload.name}` }]);
-          break;
-        case 'DELETE_SEGMENT':
-          const segId = payload.segmentId || payload.id;
-          if (!segId) throw new Error('Missing segment ID');
-          await segmentsApi.delete(segId);
-          qc.invalidateQueries(['segments']);
-          qc.invalidateQueries(['dashboard']);
-          toast.success(`Segment deleted via AI`);
-          setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Deleted segment ID: ${segId}` }]);
-          break;
-        case 'CREATE_CAMPAIGN':
-          result = await campaignsApi.create(payload);
-          qc.invalidateQueries(['campaigns']);
-          qc.invalidateQueries(['dashboard']);
-          toast.success(`Campaign "${payload.name}" drafted via AI`);
-          setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Drafted campaign: ${payload.name}` }]);
-          break;
-        case 'DELETE_CAMPAIGN':
-          const cmpId = payload.campaignId || payload.id;
-          if (!cmpId) throw new Error('Missing campaign ID');
-          await campaignsApi.delete(cmpId);
-          qc.invalidateQueries(['campaigns']);
-          qc.invalidateQueries(['dashboard']);
-          toast.success(`Campaign deleted via AI`);
-          setMsgs(p => [...p, { id: uuidv4(), role: 'system_executed', content: `Deleted campaign ID: ${cmpId}` }]);
-          break;
-        default:
-          console.warn('Unknown AI command:', command);
+      const newSysMsgs = [];
+      let refreshSegments = false;
+      let refreshCampaigns = false;
+
+      for (const cmdObj of commandsArray) {
+        const { command, payload = {} } = cmdObj;
+        
+        switch (command) {
+          case 'CREATE_SEGMENT':
+            await segmentsApi.create(payload);
+            refreshSegments = true;
+            toast.success(`Segment "${payload.name}" created via AI`);
+            newSysMsgs.push({ id: uuidv4(), role: 'system_executed', content: `Created segment: ${payload.name}` });
+            break;
+          case 'DELETE_SEGMENT':
+            const segId = payload.segmentId || payload.id;
+            if (!segId) throw new Error('Missing segment ID');
+            await segmentsApi.delete(segId);
+            refreshSegments = true;
+            toast.success(`Segment deleted via AI`);
+            newSysMsgs.push({ id: uuidv4(), role: 'system_executed', content: `Deleted segment ID: ${segId}` });
+            break;
+          case 'CREATE_CAMPAIGN':
+            await campaignsApi.create(payload);
+            refreshCampaigns = true;
+            toast.success(`Campaign "${payload.name}" drafted via AI`);
+            newSysMsgs.push({ id: uuidv4(), role: 'system_executed', content: `Drafted campaign: ${payload.name}` });
+            break;
+          case 'DELETE_CAMPAIGN':
+            const cmpId = payload.campaignId || payload.id;
+            if (!cmpId) throw new Error('Missing campaign ID');
+            await campaignsApi.delete(cmpId);
+            refreshCampaigns = true;
+            toast.success(`Campaign deleted via AI`);
+            newSysMsgs.push({ id: uuidv4(), role: 'system_executed', content: `Deleted campaign ID: ${cmpId}` });
+            break;
+          case 'DELETE_ALL_CAMPAIGNS':
+            await campaignsApi.deleteAll();
+            refreshCampaigns = true;
+            toast.success(`All campaigns deleted via AI`);
+            newSysMsgs.push({ id: uuidv4(), role: 'system_executed', content: `Deleted all campaigns` });
+            break;
+          default:
+            console.warn('Unknown AI command:', command);
+        }
       }
+
+      if (refreshSegments) qc.invalidateQueries(['segments']);
+      if (refreshCampaigns) qc.invalidateQueries(['campaigns']);
+      if (refreshSegments || refreshCampaigns) qc.invalidateQueries(['dashboard']);
+      
+      if (newSysMsgs.length > 0) {
+        setMsgs(p => [...p, ...newSysMsgs]);
+      }
+
     } catch (err) {
       console.error('Failed to execute AI command', err);
       const msg = err.response?.data?.error || err.response?.data?.errors?.[0]?.msg || err.message;

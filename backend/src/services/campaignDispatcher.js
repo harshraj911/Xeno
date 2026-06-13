@@ -14,7 +14,7 @@ export async function checkCampaignCompletion(campaignId) {
       select: { status: true, totalRecipients: true }
     });
 
-    if (!campaign || (campaign.status !== 'running' && campaign.status !== 'paused')) return;
+    if (!campaign || !['running', 'paused', 'completed'].includes(campaign.status)) return;
     
     // Recalculate terminal counts to be the source of truth
     const terminalStats = await prisma.communication.groupBy({
@@ -36,7 +36,7 @@ export async function checkCampaignCompletion(campaignId) {
     // Use the stored totalRecipients for comparison
     const targetCount = campaign.totalRecipients || 0;
 
-    if (targetCount > 0 && terminalCount >= targetCount) {
+    if (campaign.status !== 'completed' && targetCount > 0 && terminalCount >= targetCount) {
       await prisma.campaign.update({
         where: { id: campaignId },
         data: {
@@ -49,7 +49,7 @@ export async function checkCampaignCompletion(campaignId) {
       });
       logger.info(`✅ Campaign ${campaignId} completed: ${terminalCount}/${targetCount} handled (Success: ${successSentCount}, Fail: ${failedCount})`);
     } else {
-      // Periodic update of counters even if not complete
+      // Periodic update of counters even if not complete, or if already marked as complete
       await prisma.campaign.update({
         where: { id: campaignId },
         data: {

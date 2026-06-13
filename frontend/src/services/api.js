@@ -70,6 +70,7 @@ export const campaignsApi = {
   stats: (id) => api.get(`/campaigns/${id}/stats`),
   insights: (id) => api.get(`/campaigns/${id}/insights`),
   delete: (id) => api.delete(`/campaigns/${id}`),
+  deleteAll: () => api.delete('/campaigns'),
   aiCreate: (data) => api.post('/campaigns/ai-create', data),
   aiMessage: (data) => api.post('/campaigns/ai-message', data)
 };

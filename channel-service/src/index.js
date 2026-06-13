@@ -15,11 +15,32 @@ const PORT = process.env.PORT || 5030;
 import { resolveServiceUrl } from './utils/urlResolver.js';
 
 let CRM_CALLBACK_URL = resolveServiceUrl(process.env.CRM_CALLBACK_URL, '4000');
-if (!CRM_CALLBACK_URL.includes('/api/receipts/callback')) {
-  CRM_CALLBACK_URL = CRM_CALLBACK_URL.endsWith('/') 
-    ? `${CRM_CALLBACK_URL}api/receipts/callback` 
-    : `${CRM_CALLBACK_URL}/api/receipts/callback`;
+const CRM_CALLBACK_PUBLIC_URL = process.env.CRM_CALLBACK_PUBLIC_URL;
+
+async function getCrmCallbackUrl() {
+  const internal = resolveServiceUrl(process.env.CRM_CALLBACK_URL, '4000');
+  let publicUrl = CRM_CALLBACK_PUBLIC_URL;
+
+  // Add the path to internal
+  const internalFull = internal.includes('/api/receipts/callback') 
+    ? internal 
+    : internal.endsWith('/') ? `${internal}api/receipts/callback` : `${internal}/api/receipts/callback`;
+
+  // Try internal first
+  try {
+    await axios.get(internalFull.replace('/api/receipts/callback', '/health'), { timeout: 1000 });
+    return internalFull;
+  } catch (err) {
+    if (publicUrl) {
+      if (!publicUrl.includes('/api/receipts/callback')) {
+        publicUrl = publicUrl.endsWith('/') ? `${publicUrl}api/receipts/callback` : `${publicUrl}/api/receipts/callback`;
+      }
+      return publicUrl;
+    }
+    return internalFull;
+  }
 }
+// Note: CRM_CALLBACK_URL logic moved to getCrmCallbackUrl()
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
 // Logger
@@ -116,7 +137,8 @@ function randomInRange([min, max]) {
 async function sendCallback(events) {
   try {
     const payload = Array.isArray(events) ? events : [events];
-    await axios.post(CRM_CALLBACK_URL, payload, {
+    const targetUrl = await getCrmCallbackUrl();
+    await axios.post(targetUrl, payload, {
       timeout: 10000,
       headers: { 'Content-Type': 'application/json', 'X-Channel-Service': 'xeno-stub/1.0' }
     });

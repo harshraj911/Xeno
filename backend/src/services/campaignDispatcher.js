@@ -68,6 +68,20 @@ import { resolveServiceUrl } from '../utils/urlResolver.js';
 
 let CHANNEL_SERVICE_URL = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5030');
 
+async function getChannelServiceUrl() {
+  const internal = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5030');
+  const publicUrl = process.env.CHANNEL_SERVICE_PUBLIC_URL;
+  
+  // Quick check if internal is alive
+  try {
+    await axios.get(`${internal}/health`, { timeout: 1000 });
+    return internal;
+  } catch (err) {
+    if (publicUrl) return publicUrl;
+    return internal;
+  }
+}
+
 // Queue definitions
 export const campaignQueue = new Queue('campaign-dispatch', {
   connection: redisConnection,
@@ -194,8 +208,9 @@ const messageWorker = new Worker(
     }
 
     try {
-      // Call channel service
-      const response = await axios.post(`${CHANNEL_SERVICE_URL}/send`, {
+      // Call channel service with dynamic URL resolution
+      const targetUrl = await getChannelServiceUrl();
+      const response = await axios.post(`${targetUrl}/send`, {
         messageId: communicationId,
         campaignId,
         recipient: {

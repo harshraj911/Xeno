@@ -86,15 +86,33 @@ async function getHealthStatus() {
   let channelDiags = {};
   try {
     const { resolveServiceUrl } = await import('./utils/urlResolver.js');
-    const channelUrl = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5030');
-    channelDiags.url = channelUrl;
-    const channelRes = await axios.get(`${channelUrl}/health`, { timeout: 4000 });
-    if (channelRes.status === 200 || channelRes.status === 207) {
-      services.channelService = 'up';
+    const internalUrl = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5030');
+    const publicUrl = process.env.CHANNEL_SERVICE_PUBLIC_URL;
+    
+    channelDiags.internalUrl = internalUrl;
+    channelDiags.publicUrl = publicUrl;
+
+    let connected = false;
+    // Try internal first
+    try {
+      const res = await axios.get(`${internalUrl}/health`, { timeout: 2000 });
+      if (res.status === 200 || res.status === 207) connected = true;
+    } catch (err) {
+      channelDiags.internalError = err.message;
+      // Try public as fallback
+      if (publicUrl) {
+        try {
+          const res = await axios.get(`${publicUrl}/health`, { timeout: 3000 });
+          if (res.status === 200 || res.status === 207) connected = true;
+        } catch (err2) {
+          channelDiags.publicError = err2.message;
+        }
+      }
     }
+
+    if (connected) services.channelService = 'up';
   } catch (err) {
-    channelDiags.error = err.message;
-    logger.warn(`Channel Service Health Check Failed: ${err.message} (Target: ${channelDiags.url})`);
+    channelDiags.globalError = err.message;
   }
 
   try {

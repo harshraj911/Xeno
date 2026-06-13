@@ -28,7 +28,13 @@ export async function checkCampaignCompletion(campaignId) {
       return acc;
     }, {});
 
-    const deliveredCount = (statusMap.delivered || 0) + (statusMap.opened || 0) + (statusMap.read || 0) + (statusMap.clicked || 0) + (statusMap.converted || 0);
+    const openedCount = statusMap.opened || 0;
+    const clickedCount = statusMap.clicked || 0;
+    const readCount = statusMap.read || 0;
+    const convertedCount = statusMap.converted || 0;
+    const deliveredOnlyCount = statusMap.delivered || 0;
+
+    const deliveredCount = deliveredOnlyCount + openedCount + readCount + clickedCount + convertedCount;
     const successSentCount = (statusMap.sent || 0) + deliveredCount;
     const failedCount = statusMap.failed || 0;
     const terminalCount = (statusMap.sent || 0) + deliveredCount + failedCount;
@@ -36,15 +42,23 @@ export async function checkCampaignCompletion(campaignId) {
     // Use the stored totalRecipients for comparison
     const targetCount = campaign.totalRecipients || 0;
 
+    const updateData = {
+      totalFailed: failedCount,
+      totalDelivered: deliveredCount,
+      totalSent: successSentCount,
+      totalOpened: openedCount,
+      totalClicked: clickedCount,
+      totalRead: readCount,
+      totalConverted: convertedCount
+    };
+
     if (campaign.status !== 'completed' && targetCount > 0 && terminalCount >= targetCount) {
       await prisma.campaign.update({
         where: { id: campaignId },
         data: {
+          ...updateData,
           status: 'completed',
-          completedAt: new Date(),
-          totalFailed: failedCount,
-          totalDelivered: deliveredCount,
-          totalSent: successSentCount
+          completedAt: new Date()
         }
       });
       logger.info(`✅ Campaign ${campaignId} completed: ${terminalCount}/${targetCount} handled (Success: ${successSentCount}, Fail: ${failedCount})`);
@@ -52,11 +66,7 @@ export async function checkCampaignCompletion(campaignId) {
       // Periodic update of counters even if not complete, or if already marked as complete
       await prisma.campaign.update({
         where: { id: campaignId },
-        data: {
-          totalFailed: failedCount,
-          totalDelivered: deliveredCount,
-          totalSent: successSentCount
-        }
+        data: updateData
       });
     }
   } catch (err) {

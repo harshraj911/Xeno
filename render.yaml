@@ -29,7 +29,7 @@ services:
         fromService:
           type: web
           name: xeno-channel-service
-          property: host
+          property: hostport
       - key: GROQ_API_KEY
         sync: false
       - key: NVIDIA_API_KEY
@@ -61,7 +61,7 @@ services:
         fromService:
           type: web
           name: xeno-backend
-          property: host
+          property: hostport
 
   # Xeno Frontend (Static Site)
   - type: web

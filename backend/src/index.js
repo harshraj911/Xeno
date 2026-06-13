@@ -83,15 +83,18 @@ async function getHealthStatus() {
     services.database = 'up';
   } catch (err) { /* ignore */ }
 
+  let channelDiags = {};
   try {
     const { resolveServiceUrl } = await import('./utils/urlResolver.js');
     const channelUrl = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5030');
-    const channelRes = await axios.get(`${channelUrl}/health`, { timeout: 3000 });
+    channelDiags.url = channelUrl;
+    const channelRes = await axios.get(`${channelUrl}/health`, { timeout: 4000 });
     if (channelRes.status === 200 || channelRes.status === 207) {
       services.channelService = 'up';
     }
   } catch (err) {
-    logger.warn(`Channel Service Health Check Failed: ${err.message} (Target: ${process.env.CHANNEL_SERVICE_URL || 'localhost:5030'})`);
+    channelDiags.error = err.message;
+    logger.warn(`Channel Service Health Check Failed: ${err.message} (Target: ${channelDiags.url})`);
   }
 
   try {
@@ -101,7 +104,7 @@ async function getHealthStatus() {
   } catch (err) { /* ignore */ }
 
   const status = (services.database === 'up' && services.channelService === 'up' && services.aiEngine === 'up') ? 'healthy' : 'degraded';
-  return { status, timestamp: new Date().toISOString(), services };
+  return { status, timestamp: new Date().toISOString(), services, diagnostics: { channel: channelDiags } };
 }
 
 app.get('/health', async (req, res) => {

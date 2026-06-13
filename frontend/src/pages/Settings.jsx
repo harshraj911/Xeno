@@ -15,7 +15,7 @@ export default function Settings() {
   const { data: health } = useQuery({
     queryKey: ['health'],
     queryFn: () => api.get('/health'),
-    refetchInterval: 10000,
+    refetchInterval: 30000,
     retry: 2
   });
   const { data: providers } = useQuery({

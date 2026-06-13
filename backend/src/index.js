@@ -75,57 +75,88 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/ai', aiLimiter, aiRoutes);
 app.use('/api/ingest', ingestRoutes);
 
-// Health check (shared logic)
+// ── Channel health cache ─────────────────────────────────────────────────────
+// We poll the channel service in the background every 45 s rather than on
+// every /health request.  This keeps the channel service awake (preventing
+// Render free-tier spin-downs) and makes the /health endpoint instant.
+// A channel that was reachable within the last 120 s is considered "up".
+const channelCache = {
+  status: 'unknown',   // 'up' | 'down' | 'unknown'
+  lastSuccess: 0,      // epoch ms of last successful probe
+  lastProbe: 0,        // epoch ms of last probe attempt
+  urls: [],
+};
+
+async function probeChannelService() {
+  const publicUrl  = process.env.CHANNEL_SERVICE_PUBLIC_URL;
+  const directUrl  = process.env.CHANNEL_SERVICE_URL || publicUrl;
+  const probeUrls  = [...new Set([publicUrl, directUrl].filter(Boolean))];
+  channelCache.urls   = probeUrls;
+  channelCache.lastProbe = Date.now();
+
+  if (!probeUrls.length) {
+    channelCache.status = 'down';
+    return;
+  }
+
+  try {
+    await Promise.any(
+      probeUrls.map(url =>
+        axios.get(`${url}/health`, { timeout: 8000 }).then(res => {
+          if (res.status === 200 || res.status === 207) return true;
+          throw new Error(`HTTP ${res.status}`);
+        })
+      )
+    );
+    channelCache.status      = 'up';
+    channelCache.lastSuccess = Date.now();
+    logger.info('✅ Channel service reachable');
+  } catch {
+    // Only flip to 'down' if we haven't seen it up within the grace window
+    const gracePeriodMs = 120_000; // 2 minutes
+    if (Date.now() - channelCache.lastSuccess > gracePeriodMs) {
+      channelCache.status = 'down';
+      logger.warn('⚠️  Channel service unreachable (grace period expired)');
+    } else {
+      logger.warn('⚠️  Channel service unreachable (within grace period — keeping status "up")');
+    }
+  }
+}
+
+// Health check — returns from cache, never blocks on a network probe
 async function getHealthStatus() {
   const services = { database: 'down', api: 'up', channelService: 'down', aiEngine: 'down' };
+
   try {
     await prisma.$queryRaw`SELECT 1`;
     services.database = 'up';
-  } catch (err) { /* ignore */ }
+  } catch { /* ignore */ }
 
-  let channelDiags = {};
-  try {
-    const { resolveServiceUrl } = await import('./utils/urlResolver.js');
-    const internalUrl = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5030');
-    const publicUrl = process.env.CHANNEL_SERVICE_PUBLIC_URL;
-
-    channelDiags.internalUrl = internalUrl;
-    channelDiags.publicUrl = publicUrl;
-
-    // On Render free tier, private networking is unreliable.
-    // Fire both probes concurrently with tight timeouts — first success wins.
-    const probeUrls = [];
-    // Public URL is most reliable on Render free tier — probe it first
-    if (publicUrl) probeUrls.push(publicUrl);
-    // Also try internal (works locally and on paid Render plans)
-    if (internalUrl && internalUrl !== publicUrl) probeUrls.push(internalUrl);
-
-    const connected = await Promise.any(
-      probeUrls.map(url =>
-        axios.get(`${url}/health`, { timeout: 4000 })
-          .then(res => {
-            if (res.status === 200 || res.status === 207) return true;
-            throw new Error(`Bad status ${res.status}`);
-          })
-      )
-    ).catch((aggErr) => {
-      channelDiags.allErrors = aggErr?.errors?.map(e => e?.message);
-      return false;
-    });
-
-    if (connected) services.channelService = 'up';
-  } catch (err) {
-    channelDiags.globalError = err.message;
-  }
+  // Channel status from cache
+  services.channelService = channelCache.status === 'up' ? 'up' : 'down';
 
   try {
     const { getActiveProviders } = await import('./services/groqService.js');
     const providers = getActiveProviders();
     if (providers.groq || providers.nvidia) services.aiEngine = 'up';
-  } catch (err) { /* ignore */ }
+  } catch { /* ignore */ }
 
-  const status = (services.database === 'up' && services.channelService === 'up' && services.aiEngine === 'up') ? 'healthy' : 'degraded';
-  return { status, timestamp: new Date().toISOString(), services, diagnostics: { channel: channelDiags } };
+  const status = (services.database === 'up' && services.channelService === 'up' && services.aiEngine === 'up')
+    ? 'healthy' : 'degraded';
+
+  return {
+    status,
+    timestamp: new Date().toISOString(),
+    services,
+    diagnostics: {
+      channel: {
+        cachedStatus:  channelCache.status,
+        lastSuccess:   channelCache.lastSuccess ? new Date(channelCache.lastSuccess).toISOString() : null,
+        lastProbe:     channelCache.lastProbe   ? new Date(channelCache.lastProbe).toISOString()   : null,
+        probeUrls:     channelCache.urls,
+      }
+    }
+  };
 }
 
 app.get('/health', async (req, res) => {
@@ -162,6 +193,12 @@ async function bootstrap() {
 
     app.listen(PORT, () => {
       logger.info(`🚀 Xeno CRM Backend running on port ${PORT}`);
+
+      // Start channel health poller immediately, then every 45 s.
+      // This also acts as a keep-alive ping to prevent Render free-tier sleep.
+      probeChannelService().catch(() => {});
+      setInterval(() => probeChannelService().catch(() => {}), 45_000);
+      logger.info('🔄 Channel health poller started (every 45 s)');
     });
   } catch (err) {
     logger.error('Failed to start server:', err);

@@ -219,6 +219,11 @@ app.use(compression());
 app.use(express.json({ limit: '5mb' }));
 app.use(morgan('dev'));
 
+// Root — satisfies Render platform health probes that hit GET /
+app.get('/', (req, res) => {
+  res.json({ service: 'Xeno Channel Service', status: 'running', version: '2.0' });
+});
+
 // POST /send - receive send request from CRM
 app.post('/send', async (req, res) => {
   try {

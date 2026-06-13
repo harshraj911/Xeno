@@ -75,6 +75,11 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/ai', aiLimiter, aiRoutes);
 app.use('/api/ingest', ingestRoutes);
 
+// Root route — satisfies Render platform health probes that hit GET /
+app.get('/', (req, res) => {
+  res.json({ service: 'Xeno CRM Backend', status: 'running', version: '2.0' });
+});
+
 // ── Channel health cache ─────────────────────────────────────────────────────
 // We poll the channel service in the background every 45 s rather than on
 // every /health request.  This keeps the channel service awake (preventing

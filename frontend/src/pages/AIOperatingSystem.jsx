@@ -277,7 +277,9 @@ export default function AIOperatingSystem() {
               <div className="text-[8px] font-mono text-white/20">STATUS: NOMINAL</div>
             </div>
             <div className="absolute bottom-4 right-4 z-10 text-right space-y-0.5">
-              <div className="text-[8px] font-mono text-white/20">RENDER: WebGL</div>
+              <div className="text-[8px] font-mono text-white/20">
+                {typeof window !== 'undefined' && (() => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl') || c.getContext('experimental-webgl')); } catch { return false; } })() ? 'RENDER: WebGL' : 'RENDER: CSS'}
+              </div>
               <div className="text-[8px] font-mono text-white/20">FPS: 60</div>
             </div>
             <div className="absolute inset-0 pointer-events-none z-10" style={{

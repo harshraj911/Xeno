@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import axios from 'axios';
 
 import { logger } from './utils/logger.js';
 import { connectRedis } from './utils/redis.js';
@@ -84,10 +85,14 @@ async function getHealthStatus() {
 
   try {
     const { resolveServiceUrl } = await import('./utils/urlResolver.js');
-    const channelUrl = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5000');
-    const channelRes = await fetch(`${channelUrl}/health`);
-    if (channelRes.ok) services.channelService = 'up';
-  } catch (err) { /* ignore */ }
+    const channelUrl = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5030');
+    const channelRes = await axios.get(`${channelUrl}/health`, { timeout: 3000 });
+    if (channelRes.status === 200 || channelRes.status === 207) {
+      services.channelService = 'up';
+    }
+  } catch (err) {
+    logger.warn(`Channel Service Health Check Failed: ${err.message} (Target: ${process.env.CHANNEL_SERVICE_URL || 'localhost:5030'})`);
+  }
 
   try {
     const { getActiveProviders } = await import('./services/groqService.js');

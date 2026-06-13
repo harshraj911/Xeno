@@ -11,7 +11,7 @@ import IORedis from 'ioredis';
 import winston from 'winston';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5030;
 import { resolveServiceUrl } from './utils/urlResolver.js';
 
 let CRM_CALLBACK_URL = resolveServiceUrl(process.env.CRM_CALLBACK_URL, '4000');

@@ -45,7 +45,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://xeno:xenosecret@postgres:5432/xenocrm
       - REDIS_URL=redis://redis:6379
-      - CHANNEL_SERVICE_URL=http://channel-service:5000
+      - CHANNEL_SERVICE_URL=http://channel-service:5030
       - GROQ_API_KEY=${GROQ_API_KEY}
       - GROQ_MODEL=${GROQ_MODEL}
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
@@ -69,7 +69,7 @@ services:
     container_name: xeno_channel
     restart: unless-stopped
     ports:
-      - '5000:5000'
+      - '5030:5030'
     environment:
       - REDIS_URL=redis://redis:6379
       - CRM_CALLBACK_URL=http://backend:4000/api/receipts/callback

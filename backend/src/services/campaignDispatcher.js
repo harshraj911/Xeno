@@ -66,7 +66,7 @@ export async function checkCampaignCompletion(campaignId) {
 
 import { resolveServiceUrl } from '../utils/urlResolver.js';
 
-let CHANNEL_SERVICE_URL = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5000');
+let CHANNEL_SERVICE_URL = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5030');
 
 // Queue definitions
 export const campaignQueue = new Queue('campaign-dispatch', {

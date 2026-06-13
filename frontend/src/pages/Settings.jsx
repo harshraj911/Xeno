@@ -55,7 +55,7 @@ export default function Settings() {
         {[
           { label:'API Protocol',    status: apiUp,  icon:Server,    detail:'PORT: 4000' },
           { label:'Core Database',   status: dbUp,   icon:Database,  detail:'PGSQL // ACTIVE' },
-          { label:'IO Channels',     status: chanUp, icon:Activity,  detail:'STUB // PORT 5000' },
+          { label:'IO Channels',     status: chanUp, icon:Activity,  detail:'STUB // PORT 5030' },
           { label:'Message Queue',   status: apiUp,  icon:Zap,       detail:'BULLMQ // REDIS' },
         ].map((item,i)=>(
           <motion.div key={item.label} initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} transition={{delay:i*0.05}}

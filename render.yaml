@@ -26,10 +26,7 @@ services:
           name: xeno-redis
           property: connectionString
       - key: CHANNEL_SERVICE_URL
-        fromService:
-          type: web
-          name: xeno-channel-service
-          property: hostport
+        value: https://xeno-channel-service-n4ek.onrender.com
       - key: CHANNEL_SERVICE_PUBLIC_URL
         value: https://xeno-channel-service-n4ek.onrender.com
       - key: GROQ_API_KEY

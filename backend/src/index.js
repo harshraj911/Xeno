@@ -88,27 +88,30 @@ async function getHealthStatus() {
     const { resolveServiceUrl } = await import('./utils/urlResolver.js');
     const internalUrl = resolveServiceUrl(process.env.CHANNEL_SERVICE_URL, '5030');
     const publicUrl = process.env.CHANNEL_SERVICE_PUBLIC_URL;
-    
+
     channelDiags.internalUrl = internalUrl;
     channelDiags.publicUrl = publicUrl;
 
-    let connected = false;
-    // Try internal first
-    try {
-      const res = await axios.get(`${internalUrl}/health`, { timeout: 2000 });
-      if (res.status === 200 || res.status === 207) connected = true;
-    } catch (err) {
-      channelDiags.internalError = err.message;
-      // Try public as fallback
-      if (publicUrl) {
-        try {
-          const res = await axios.get(`${publicUrl}/health`, { timeout: 3000 });
-          if (res.status === 200 || res.status === 207) connected = true;
-        } catch (err2) {
-          channelDiags.publicError = err2.message;
-        }
-      }
-    }
+    // On Render free tier, private networking is unreliable.
+    // Fire both probes concurrently with tight timeouts — first success wins.
+    const probeUrls = [];
+    // Public URL is most reliable on Render free tier — probe it first
+    if (publicUrl) probeUrls.push(publicUrl);
+    // Also try internal (works locally and on paid Render plans)
+    if (internalUrl && internalUrl !== publicUrl) probeUrls.push(internalUrl);
+
+    const connected = await Promise.any(
+      probeUrls.map(url =>
+        axios.get(`${url}/health`, { timeout: 4000 })
+          .then(res => {
+            if (res.status === 200 || res.status === 207) return true;
+            throw new Error(`Bad status ${res.status}`);
+          })
+      )
+    ).catch((aggErr) => {
+      channelDiags.allErrors = aggErr?.errors?.map(e => e?.message);
+      return false;
+    });
 
     if (connected) services.channelService = 'up';
   } catch (err) {

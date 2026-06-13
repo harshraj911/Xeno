@@ -31,10 +31,7 @@ services:
           name: xeno-channel-service
           property: hostport
       - key: CHANNEL_SERVICE_PUBLIC_URL
-        fromService:
-          type: web
-          name: xeno-channel-service
-          property: url
+        value: https://xeno-channel-service-n4ek.onrender.com
       - key: GROQ_API_KEY
         sync: false
       - key: NVIDIA_API_KEY
@@ -68,10 +65,7 @@ services:
           name: xeno-backend
           property: hostport
       - key: CRM_CALLBACK_PUBLIC_URL
-        fromService:
-          type: web
-          name: xeno-backend
-          property: url
+        value: https://xeno-backend-hwfg.onrender.com
 
   # Xeno Frontend (Static Site)
   - type: web
